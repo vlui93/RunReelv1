@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Play, Pause, Square, MapPin } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import PostRunModal from '@/components/PostRunModal';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapViewComponent from '@/components/MapViewComponent';
 
 export default function NavigateScreen() {
   const [showPostRunModal, setShowPostRunModal] = useState(false);
@@ -133,57 +133,15 @@ export default function NavigateScreen() {
       </View>
 
       {/* Map Display */}
-      {Platform.OS !== 'web' && (
-        <View style={styles.mapContainer}>
-          <MapView
-            style={styles.map}
-            region={mapRegion}
-            showsUserLocation={true}
-            showsMyLocationButton={false}
-            followsUserLocation={isRunning && !isPaused}
-          >
-            {/* Current position marker */}
-            {routeData.length > 0 && (
-              <Marker
-                coordinate={{
-                  latitude: routeData[routeData.length - 1].latitude,
-                  longitude: routeData[routeData.length - 1].longitude,
-                }}
-                title="Current Position"
-              />
-            )}
-            
-            {/* Route polyline */}
-            {routeData.length > 1 && (
-              <Polyline
-                coordinates={routeData.map(point => ({
-                  latitude: point.latitude,
-                  longitude: point.longitude,
-                }))}
-                strokeColor="#3B82F6"
-                strokeWidth={4}
-                lineCap="round"
-                lineJoin="round"
-              />
-            )}
-          </MapView>
-        </View>
-      )}
-
-      {/* Web fallback for map */}
-      {Platform.OS === 'web' && (
-        <View style={styles.mapPlaceholder}>
-          <MapPin size={48} color="#6B7280" />
-          <Text style={styles.mapPlaceholderText}>
-            Map view available on mobile devices
-          </Text>
-          {routeData.length > 0 && (
-            <Text style={styles.routeInfo}>
-              Route points recorded: {routeData.length}
-            </Text>
-          )}
-        </View>
-      )}
+      <View style={styles.mapContainer}>
+        <MapViewComponent
+          style={styles.map}
+          region={mapRegion}
+          routeData={routeData}
+          isRunning={isRunning}
+          isPaused={isPaused}
+        />
+      </View>
 
       {/* Stats Display */}
       <View style={styles.statsContainer}>
@@ -479,26 +437,5 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  mapPlaceholder: {
-    height: 200,
-    marginHorizontal: 24,
-    marginBottom: 24,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  mapPlaceholderText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  routeInfo: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 8,
   },
 });
