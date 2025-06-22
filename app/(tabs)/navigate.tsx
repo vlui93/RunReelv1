@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useRunTracking } from '@/hooks/useRunTracking';
 import { router } from 'expo-router';
 import { Play, Pause, Square, MapPin } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import PostRunModal from '@/components/PostRunModal';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 
 export default function NavigateScreen() {
   const [showPostRunModal, setShowPostRunModal] = useState(false);
   const [runData, setRunData] = useState<any>(null);
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 37.78825,
+    longitude: -122.4324,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
 
   const {
     isRunning,
@@ -23,6 +30,7 @@ export default function NavigateScreen() {
     formatTime,
     formatPace,
     formatDistance,
+    routeData,
   } = useRunTracking();
 
   const handleStartRun = async () => {
@@ -48,10 +56,8 @@ export default function NavigateScreen() {
           style: 'destructive',
           onPress: async () => {
             const data = await stopRun();
-            if (data && data.distance > 0) {
-              setRunData(data);
-              setShowPostRunModal(true);
-            }
+            setRunData(data);
+            setShowPostRunModal(true);
           },
         },
       ],
@@ -80,6 +86,18 @@ export default function NavigateScreen() {
       pauseRun();
     }
   };
+
+  // Update map region when route data changes
+  React.useEffect(() => {
+    if (routeData.length > 0) {
+      const lastPoint = routeData[routeData.length - 1];
+      setMapRegion(prev => ({
+        ...prev,
+        latitude: lastPoint.latitude,
+        longitude: lastPoint.longitude,
+      }));
+    }
+  }, [routeData]);
 
   if (!hasLocationPermission) {
     return (
@@ -113,6 +131,59 @@ export default function NavigateScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Map Display */}
+      {Platform.OS !== 'web' && (
+        <View style={styles.mapContainer}>
+          <MapView
+            style={styles.map}
+            region={mapRegion}
+            showsUserLocation={true}
+            showsMyLocationButton={false}
+            followsUserLocation={isRunning && !isPaused}
+          >
+            {/* Current position marker */}
+            {routeData.length > 0 && (
+              <Marker
+                coordinate={{
+                  latitude: routeData[routeData.length - 1].latitude,
+                  longitude: routeData[routeData.length - 1].longitude,
+                }}
+                title="Current Position"
+              />
+            )}
+            
+            {/* Route polyline */}
+            {routeData.length > 1 && (
+              <Polyline
+                coordinates={routeData.map(point => ({
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                }))}
+                strokeColor="#3B82F6"
+                strokeWidth={4}
+                lineCap="round"
+                lineJoin="round"
+              />
+            )}
+          </MapView>
+        </View>
+      )}
+
+      {/* Web fallback for map */}
+      {Platform.OS === 'web' && (
+        <View style={styles.mapPlaceholder}>
+          <MapPin size={48} color="#6B7280" />
+          <Text style={styles.mapPlaceholderText}>
+            Map view available on mobile devices
+          </Text>
+          {routeData.length > 0 && (
+            <Text style={styles.routeInfo}>
+              Route points recorded: {routeData.length}
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Stats Display */}
       <View style={styles.statsContainer}>
@@ -393,5 +464,41 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 8,
     lineHeight: 20,
+  },
+  mapContainer: {
+    height: 200,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  map: {
+    flex: 1,
+  },
+  mapPlaceholder: {
+    height: 200,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  mapPlaceholderText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  routeInfo: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 8,
   },
 });
