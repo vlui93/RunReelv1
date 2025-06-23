@@ -1,20 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Modal } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useHealthData } from '@/hooks/useHealthData';
 import { useAchievements } from '@/hooks/useAchievements';
-import { Play, Activity, Target, Trophy, Smartphone, Zap, Users, Video } from 'lucide-react-native';
+import { useManualActivities } from '@/hooks/useManualActivities';
+import { useMockDataGenerator } from '@/hooks/useMockDataGenerator';
+import { useApiUsage } from '@/hooks/useApiUsage';
+import { Play, Activity, Target, Trophy, Smartphone, Zap, Users, Video, Plus, Database, TestTube } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const { getConnectedSources, getWorkoutStats, connectAppleHealth, connectGoogleFit, isConnecting } = useHealthData();
   const { stats: achievementStats } = useAchievements();
+  const { getActivityStats } = useManualActivities();
+  const { generateMockData, clearMockData, generating, progress } = useMockDataGenerator();
+  const { limits } = useApiUsage();
+  const [showMockDataModal, setShowMockDataModal] = useState(false);
 
   const connectedSources = getConnectedSources();
   const workoutStats = getWorkoutStats();
+  const manualStats = getActivityStats();
   const hasConnectedSources = connectedSources.length > 0;
+  const hasManualActivities = manualStats.totalActivities > 0;
 
   if (!user) {
     return (
@@ -65,6 +74,27 @@ export default function HomeScreen() {
       Alert.alert('Info', 'Health data import is available on mobile devices');
     }
   };
+
+  const handleGenerateMockData = async () => {
+    try {
+      await generateMockData();
+      setShowMockDataModal(false);
+      Alert.alert('Success', 'Mock data generated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate mock data');
+    }
+  };
+
+  const handleClearMockData = async () => {
+    try {
+      await clearMockData();
+      setShowMockDataModal(false);
+      Alert.alert('Success', 'Mock data cleared successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to clear mock data');
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Header */}
@@ -72,7 +102,7 @@ export default function HomeScreen() {
         <View>
           <Text style={styles.greeting}>Welcome back!</Text>
           <Text style={styles.userName}>
-            {hasConnectedSources ? 'Your fitness journey continues' : 'Connect your health data to get started'}
+            {hasConnectedSources || hasManualActivities ? 'Your fitness journey continues' : 'Get started with your fitness tracking'}
           </Text>
         </View>
         <TouchableOpacity 
@@ -83,8 +113,29 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* API Usage Limits */}
+      {(hasConnectedSources || hasManualActivities) && (
+        <View style={styles.apiLimitsCard}>
+          <View style={styles.apiLimitsHeader}>
+            <TestTube size={20} color="#8B5CF6" />
+            <Text style={styles.apiLimitsTitle}>Video Generation Limit</Text>
+          </View>
+          <Text style={styles.apiLimitsText}>
+            {limits.remainingCount} of {limits.maxVideoGenerations} videos remaining
+          </Text>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { width: `${(limits.currentCount / limits.maxVideoGenerations) * 100}%` }
+              ]} 
+            />
+          </View>
+        </View>
+      )}
+
       {/* Health Data Connection */}
-      {!hasConnectedSources && (
+      {!hasConnectedSources && !hasManualActivities && (
         <View style={styles.connectionCard}>
           <LinearGradient
             colors={['#8B5CF6', '#7C3AED']}
@@ -104,12 +155,47 @@ export default function HomeScreen() {
                 {isConnecting ? 'Connecting...' : 'Connect Health App'}
               </Text>
             </TouchableOpacity>
+            
+            <View style={styles.orDivider}>
+              <View style={styles.orLine} />
+              <Text style={styles.orText}>OR</Text>
+              <View style={styles.orLine} />
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.connectButton, styles.manualButton]}
+              onPress={() => router.push('/manual-entry')}
+            >
+              <Plus size={16} color="#8B5CF6" />
+              <Text style={[styles.connectButtonText, styles.manualButtonText]}>
+                Add Activity Manually
+              </Text>
+            </TouchableOpacity>
           </LinearGradient>
         </View>
       )}
 
+      {/* Manual Entry Quick Action */}
+      {(hasConnectedSources || hasManualActivities) && (
+        <TouchableOpacity 
+          style={styles.manualEntryCard}
+          onPress={() => router.push('/manual-entry')}
+        >
+          <LinearGradient
+            colors={['#10B981', '#059669']}
+            style={styles.manualEntryGradient}
+          >
+            <Plus size={24} color="#FFFFFF" />
+            <Text style={styles.manualEntryTitle}>Add Manual Activity</Text>
+            <Text style={styles.manualEntrySubtitle}>
+              Track workouts not captured by health apps
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+
       {/* Quick Actions */}
-      {hasConnectedSources && (
+      {(hasConnectedSources || hasManualActivities) && (
         <View style={styles.quickActionsContainer}>
           <TouchableOpacity 
             style={styles.quickActionCard}
@@ -122,7 +208,7 @@ export default function HomeScreen() {
               <Activity size={28} color="#FFFFFF" />
               <Text style={styles.quickActionTitle}>View Workouts</Text>
               <Text style={styles.quickActionSubtitle}>
-                {workoutStats.totalWorkouts} imported
+                {workoutStats.totalWorkouts + manualStats.totalActivities} total
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -146,18 +232,18 @@ export default function HomeScreen() {
       )}
 
       {/* Stats Overview */}
-      {hasConnectedSources && (
+      {(hasConnectedSources || hasManualActivities) && (
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Your Progress</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Activity size={24} color="#3B82F6" />
-              <Text style={styles.statValue}>{workoutStats.totalWorkouts}</Text>
-              <Text style={styles.statLabel}>Workouts</Text>
+              <Text style={styles.statValue}>{workoutStats.totalWorkouts + manualStats.totalActivities}</Text>
+              <Text style={styles.statLabel}>Activities</Text>
             </View>
             <View style={styles.statCard}>
               <Target size={24} color="#10B981" />
-              <Text style={styles.statValue}>{workoutStats.totalDistance.toFixed(1)}km</Text>
+              <Text style={styles.statValue}>{(workoutStats.totalDistance + manualStats.totalDistance).toFixed(1)}km</Text>
               <Text style={styles.statLabel}>Distance</Text>
             </View>
             <View style={styles.statCard}>
@@ -167,7 +253,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.statCard}>
               <Video size={24} color="#8B5CF6" />
-              <Text style={styles.statValue}>{achievementStats.totalAchievements - achievementStats.unprocessedCount}</Text>
+              <Text style={styles.statValue}>{manualStats.videosGenerated}</Text>
               <Text style={styles.statLabel}>Videos</Text>
             </View>
           </View>
@@ -175,7 +261,7 @@ export default function HomeScreen() {
       )}
 
       {/* Recent Achievements */}
-      {hasConnectedSources && achievementStats.recentAchievements.length > 0 && (
+      {(hasConnectedSources || hasManualActivities) && achievementStats.recentAchievements.length > 0 && (
         <View style={styles.achievementsSection}>
           <Text style={styles.sectionTitle}>Recent Achievements</Text>
           {achievementStats.recentAchievements.slice(0, 3).map((achievement) => (
@@ -203,26 +289,78 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Manual Run Tracking (Legacy) */}
-      {hasConnectedSources && (
-        <TouchableOpacity 
-          style={styles.legacyRunCard}
-          onPress={() => router.push('/(tabs)/navigate')}
+      {/* Mock Data Generator */}
+      {(hasConnectedSources || hasManualActivities) && (
+        <TouchableOpacity
+          style={styles.mockDataCard}
+          onPress={() => setShowMockDataModal(true)}
         >
           <LinearGradient
-            colors={['#10B981', '#059669']}
-            style={styles.legacyRunGradient}
+            colors={['#6366F1', '#4F46E5']}
+            style={styles.mockDataGradient}
           >
-            <View style={styles.legacyRunContent}>
-              <Play size={28} color="#FFFFFF" />
-              <View style={styles.legacyRunText}>
-                <Text style={styles.legacyRunTitle}>Manual Run Tracking</Text>
-                <Text style={styles.legacyRunSubtitle}>Track a run manually with GPS</Text>
-              </View>
-            </View>
+            <Database size={24} color="#FFFFFF" />
+            <Text style={styles.mockDataTitle}>Testing Tools</Text>
+            <Text style={styles.mockDataSubtitle}>
+              Generate mock data for testing video generation
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       )}
+
+      {/* Mock Data Modal */}
+      <Modal
+        visible={showMockDataModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowMockDataModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Testing Tools</Text>
+            <Text style={styles.modalDescription}>
+              Generate realistic mock fitness data for testing the video generation system.
+            </Text>
+            
+            {generating && (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>Generating mock data... {Math.round(progress)}%</Text>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                </View>
+              </View>
+            )}
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.generateButton]}
+                onPress={handleGenerateMockData}
+                disabled={generating}
+              >
+                <Text style={styles.modalButtonText}>
+                  {generating ? 'Generating...' : 'Generate Mock Data'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.clearButton]}
+                onPress={handleClearMockData}
+                disabled={generating}
+              >
+                <Text style={styles.modalButtonText}>Clear Mock Data</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowMockDataModal(false)}
+                disabled={generating}
+              >
+                <Text style={[styles.modalButtonText, styles.cancelButtonText]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -439,7 +577,98 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-  legacyRunCard: {
+  apiLimitsCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 24,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  apiLimitsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  apiLimitsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginLeft: 8,
+  },
+  apiLimitsText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#8B5CF6',
+    borderRadius: 2,
+  },
+  orDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  orText: {
+    color: '#E5E7EB',
+    fontSize: 12,
+    fontWeight: '600',
+    marginHorizontal: 16,
+  },
+  manualButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  manualButtonText: {
+    color: '#8B5CF6',
+    marginLeft: 8,
+  },
+  manualEntryCard: {
+    marginHorizontal: 24,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  manualEntryGradient: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  manualEntryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 8,
+  },
+  manualEntrySubtitle: {
+    fontSize: 12,
+    color: '#D1FAE5',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  mockDataCard: {
     marginHorizontal: 24,
     marginBottom: 32,
     borderRadius: 12,
@@ -450,17 +679,125 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
-  legacyRunGradient: {
-    padding: 20,
-  },
-  legacyRunContent: {
-    flexDirection: 'row',
+  mockDataGradient: {
+    padding: 16,
     alignItems: 'center',
   },
-  legacyRunText: {
-    marginLeft: 16,
+  mockDataTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 8,
   },
-  legacyRunTitle: {
+  mockDataSubtitle: {
+    fontSize: 12,
+    color: '#E0E7FF',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  progressContainer: {
+    marginBottom: 24,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalButtons: {
+    gap: 12,
+  },
+  modalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  generateButton: {
+    backgroundColor: '#3B82F6',
+  },
+  clearButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  cancelButtonText: {
+    color: '#6B7280',
+  },
+  statsSection: {
+    marginHorizontal: 24,
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    width: '48%',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+});
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',

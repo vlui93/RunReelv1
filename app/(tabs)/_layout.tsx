@@ -34,7 +34,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="navigate"
         options={{
-          title: 'Track Run',
+          title: 'GPS Track',
           tabBarIcon: ({ size, color }) => (
             <Navigation size={size} color={color} />
           ),

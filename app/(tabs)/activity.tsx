@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } 
 import { router } from 'expo-router';
 import { useHealthData } from '@/hooks/useHealthData';
 import { useAchievements } from '@/hooks/useAchievements';
-import { Activity, Calendar, Clock, Target, Video, Smartphone, RefreshCw } from 'lucide-react-native';
+import { useManualActivities } from '@/hooks/useManualActivities';
+import { Activity, Calendar, Clock, Target, Video, Smartphone, RefreshCw, Plus } from 'lucide-react-native';
 
 export default function ActivityScreen() {
   const { 
@@ -15,19 +16,22 @@ export default function ActivityScreen() {
     refreshData 
   } = useHealthData();
   const { stats: achievementStats } = useAchievements();
+  const { activities: manualActivities, fetchActivities } = useManualActivities();
   
   const [refreshing, setRefreshing] = useState(false);
   const connectedSources = getConnectedSources();
   const workoutStats = getWorkoutStats();
+  const hasAnyActivities = importedWorkouts.length > 0 || manualActivities.length > 0;
 
   const onRefresh = () => {
     setRefreshing(true);
-    refreshData().finally(() => setRefreshing(false));
+    Promise.all([refreshData(), fetchActivities()]).finally(() => setRefreshing(false));
   };
 
   const handleSync = async () => {
     try {
       await syncWorkoutData();
+      await fetchActivities();
     } catch (error) {
       console.error('Sync failed:', error);
     }
@@ -57,7 +61,23 @@ export default function ActivityScreen() {
     });
   };
 
-  if (connectedSources.length === 0) {
+  // Combine and sort all activities
+  const allActivities = [
+    ...importedWorkouts.map(workout => ({
+      ...workout,
+      type: 'imported' as const,
+      activity_name: `${workout.workout_type.charAt(0).toUpperCase() + workout.workout_type.slice(1)} Workout`,
+      activity_date: workout.start_time,
+      display_date: workout.start_time,
+    })),
+    ...manualActivities.map(activity => ({
+      ...activity,
+      type: 'manual' as const,
+      display_date: `${activity.activity_date}T${activity.start_time}`,
+    }))
+  ].sort((a, b) => new Date(b.display_date).getTime() - new Date(a.display_date).getTime());
+
+  if (!hasAnyActivities && connectedSources.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -65,16 +85,25 @@ export default function ActivityScreen() {
         </View>
         <View style={styles.emptyState}>
           <Smartphone size={64} color="#9CA3AF" />
-          <Text style={styles.emptyStateTitle}>No Health Data Connected</Text>
+          <Text style={styles.emptyStateTitle}>No Activities Yet</Text>
           <Text style={styles.emptyStateSubtitle}>
-            Connect Apple Health or Google Fit to see your workout activity here
+            Connect health apps or add activities manually to get started
           </Text>
-          <TouchableOpacity 
-            style={styles.connectButton}
-            onPress={() => router.push('/(tabs)')}
-          >
-            <Text style={styles.connectButtonText}>Connect Health Data</Text>
-          </TouchableOpacity>
+          <View style={styles.emptyStateButtons}>
+            <TouchableOpacity 
+              style={styles.connectButton}
+              onPress={() => router.push('/(tabs)')}
+            >
+              <Text style={styles.connectButtonText}>Connect Health Data</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.connectButton, styles.manualButton]}
+              onPress={() => router.push('/manual-entry')}
+            >
+              <Plus size={16} color="#3B82F6" />
+              <Text style={[styles.connectButtonText, styles.manualButtonText]}>Add Manually</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -92,44 +121,54 @@ export default function ActivityScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Activity</Text>
-        <TouchableOpacity 
-          style={styles.syncButton}
-          onPress={handleSync}
-          disabled={isSyncing}
-        >
-          <RefreshCw size={16} color={isSyncing ? "#9CA3AF" : "#3B82F6"} />
-          <Text style={[styles.syncButtonText, isSyncing && styles.syncButtonTextDisabled]}>
-            {isSyncing ? 'Syncing...' : 'Sync'}
-                    </Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => router.push('/manual-entry')}
+          >
+            <Plus size={16} color="#3B82F6" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.syncButton}
+            onPress={handleSync}
+            disabled={isSyncing}
+          >
+            <RefreshCw size={16} color={isSyncing ? "#9CA3AF" : "#3B82F6"} />
+            <Text style={[styles.syncButtonText, isSyncing && styles.syncButtonTextDisabled]}>
+              {isSyncing ? 'Syncing...' : 'Sync'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Connected Sources */}
-      <View style={styles.sourcesContainer}>
-        <Text style={styles.sectionTitle}>Connected Sources</Text>
-        <View style={styles.sourcesList}>
-          {connectedSources.map((source) => (
-            <View key={source.id} style={styles.sourceCard}>
-              <View style={styles.sourceIcon}>
-                <Smartphone size={20} color="#10B981" />
+      {connectedSources.length > 0 && (
+        <View style={styles.sourcesContainer}>
+          <Text style={styles.sectionTitle}>Connected Sources</Text>
+          <View style={styles.sourcesList}>
+            {connectedSources.map((source) => (
+              <View key={source.id} style={styles.sourceCard}>
+                <View style={styles.sourceIcon}>
+                  <Smartphone size={20} color="#10B981" />
+                </View>
+                <View style={styles.sourceContent}>
+                  <Text style={styles.sourceName}>
+                    {source.source_type === 'apple_health' ? 'Apple Health' : 
+                     source.source_type === 'google_fit' ? 'Google Fit' : 'Manual'}
+                  </Text>
+                  <Text style={styles.sourceStatus}>
+                    Last sync: {source.last_sync_at ? 
+                      new Date(source.last_sync_at).toLocaleDateString() : 'Never'}
+                  </Text>
+                </View>
+                <View style={styles.connectedBadge}>
+                  <Text style={styles.connectedBadgeText}>Connected</Text>
+                </View>
               </View>
-              <View style={styles.sourceContent}>
-                <Text style={styles.sourceName}>
-                  {source.source_type === 'apple_health' ? 'Apple Health' : 
-                   source.source_type === 'google_fit' ? 'Google Fit' : 'Manual'}
-                </Text>
-                <Text style={styles.sourceStatus}>
-                  Last sync: {source.last_sync_at ? 
-                    new Date(source.last_sync_at).toLocaleDateString() : 'Never'}
-                </Text>
-              </View>
-              <View style={styles.connectedBadge}>
-                <Text style={styles.connectedBadgeText}>Connected</Text>
-              </View>
-            </View>
-          ))}
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Summary Stats */}
       <View style={styles.summaryContainer}>
@@ -137,76 +176,113 @@ export default function ActivityScreen() {
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Activity size={24} color="#3B82F6" />
-            <Text style={styles.statValue}>{workoutStats.totalWorkouts}</Text>
-            <Text style={styles.statLabel}>Workouts</Text>
+            <Text style={styles.statValue}>{allActivities.length}</Text>
+            <Text style={styles.statLabel}>Activities</Text>
           </View>
           <View style={styles.statCard}>
             <Target size={24} color="#10B981" />
-            <Text style={styles.statValue}>{workoutStats.totalDistance.toFixed(1)}km</Text>
+            <Text style={styles.statValue}>
+              {(workoutStats.totalDistance + 
+                manualActivities.reduce((sum, a) => sum + (a.distance_km || 0), 0)).toFixed(1)}km
+            </Text>
             <Text style={styles.statLabel}>Distance</Text>
           </View>
           <View style={styles.statCard}>
             <Clock size={24} color="#F59E0B" />
-            <Text style={styles.statValue}>{workoutStats.totalDuration} min</Text>
+            <Text style={styles.statValue}>
+              {workoutStats.totalDuration + 
+               Math.floor(manualActivities.reduce((sum, a) => sum + a.duration_seconds, 0) / 60)} min
+            </Text>
             <Text style={styles.statLabel}>Time</Text>
           </View>
           <View style={styles.statCard}>
             <Video size={24} color="#8B5CF6" />
-            <Text style={styles.statValue}>{achievementStats.totalAchievements}</Text>
-            <Text style={styles.statLabel}>Achievements</Text>
+            <Text style={styles.statValue}>
+              {manualActivities.filter(a => a.video_generated).length}
+            </Text>
+            <Text style={styles.statLabel}>Videos</Text>
           </View>
         </View>
       </View>
 
-      {/* Recent Workouts */}
-      <View style={styles.workoutsContainer}>
-        <Text style={styles.sectionTitle}>Recent Workouts</Text>
+      {/* Recent Activities */}
+      <View style={styles.activitiesContainer}>
+        <Text style={styles.sectionTitle}>Recent Activities</Text>
         
-        {importedWorkouts.length === 0 ? (
+        {allActivities.length === 0 ? (
           <View style={styles.emptyState}>
             <Activity size={48} color="#9CA3AF" />
-            <Text style={styles.emptyStateTitle}>No workouts found</Text>
+            <Text style={styles.emptyStateTitle}>No activities found</Text>
             <Text style={styles.emptyStateSubtitle}>
-              Your imported workouts will appear here
+              Your activities will appear here
             </Text>
           </View>
         ) : (
-          <View style={styles.workoutsList}>
-            {importedWorkouts.slice(0, 10).map((workout) => (
-              <View key={workout.id} style={styles.workoutCard}>
-                <View style={styles.workoutHeader}>
-                  <View style={styles.workoutType}>
+          <View style={styles.activitiesList}>
+            {allActivities.slice(0, 20).map((activity) => (
+              <View key={`${activity.type}-${activity.id}`} style={styles.activityCard}>
+                <View style={styles.activityHeader}>
+                  <View style={styles.activityType}>
                     <Activity size={16} color="#6B7280" />
-                    <Text style={styles.workoutTypeText}>
-                      {workout.workout_type.charAt(0).toUpperCase() + workout.workout_type.slice(1)}
+                    <Text style={styles.activityTypeText}>
+                      {activity.type === 'manual' 
+                        ? activity.activity_type 
+                        : activity.workout_type?.charAt(0).toUpperCase() + activity.workout_type?.slice(1)
+                      }
                     </Text>
+                    {activity.type === 'manual' && (
+                      <View style={styles.manualBadge}>
+                        <Text style={styles.manualBadgeText}>Manual</Text>
+                      </View>
+                    )}
                   </View>
-                  <View style={styles.workoutDate}>
+                  <View style={styles.activityDate}>
                     <Calendar size={16} color="#6B7280" />
-                    <Text style={styles.workoutDateText}>{formatDate(workout.start_time)}</Text>
+                    <Text style={styles.activityDateText}>
+                      {formatDate(activity.type === 'manual' ? activity.activity_date : activity.start_time)}
+                    </Text>
                   </View>
                 </View>
                 
-                <View style={styles.workoutStats}>
-                  <View style={styles.workoutStat}>
-                    <Text style={styles.workoutStatValue}>{formatDistance(workout.distance)}</Text>
-                    <Text style={styles.workoutStatLabel}>Distance</Text>
-                  </View>
-                  <View style={styles.workoutStat}>
-                    <Text style={styles.workoutStatValue}>{formatTime(workout.duration)}</Text>
-                    <Text style={styles.workoutStatLabel}>Time</Text>
-                  </View>
-                  <View style={styles.workoutStat}>
-                    <Text style={styles.workoutStatValue}>
-                      {workout.pace_avg ? formatPace(workout.pace_avg) : '--:--'}
+                <Text style={styles.activityName}>
+                  {activity.type === 'manual' ? activity.activity_name : activity.activity_name}
+                </Text>
+                
+                <View style={styles.activityStats}>
+                  <View style={styles.activityStat}>
+                    <Text style={styles.activityStatValue}>
+                      {activity.distance_km || activity.distance 
+                        ? formatDistance((activity.distance_km || activity.distance) * 1000) 
+                        : '--'}
                     </Text>
-                    <Text style={styles.workoutStatLabel}>Pace</Text>
+                    <Text style={styles.activityStatLabel}>Distance</Text>
                   </View>
-                  <View style={styles.workoutStat}>
-                    <Text style={styles.workoutStatValue}>{workout.calories || 0}</Text>
-                    <Text style={styles.workoutStatLabel}>Calories</Text>
+                  <View style={styles.activityStat}>
+                    <Text style={styles.activityStatValue}>
+                      {formatTime(activity.duration_seconds || activity.duration)}
+                    </Text>
+                    <Text style={styles.activityStatLabel}>Time</Text>
+                  </View>
+                  <View style={styles.activityStat}>
+                    <Text style={styles.activityStatValue}>
+                      {activity.pace_avg ? formatPace(activity.pace_avg) : '--:--'}
+                    </Text>
+                    <Text style={styles.activityStatLabel}>Pace</Text>
+                  </View>
+                  <View style={styles.activityStat}>
+                    <Text style={styles.activityStatValue}>
+                      {activity.calories_burned || activity.calories || 0}
+                    </Text>
+                    <Text style={styles.activityStatLabel}>Calories</Text>
                   </View>
                 </View>
+                
+                {activity.type === 'manual' && activity.video_generated && (
+                  <View style={styles.videoIndicator}>
+                    <Video size={16} color="#8B5CF6" />
+                    <Text style={styles.videoIndicatorText}>Video Generated</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -225,9 +301,6 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 24,
     paddingTop: 60,
   },
@@ -235,6 +308,20 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: '#1F2937',
+    marginBottom: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   syncButton: {
     flexDirection: 'row',
@@ -252,6 +339,20 @@ const styles = StyleSheet.create({
   },
   syncButtonTextDisabled: {
     color: '#6B7280',
+  },
+  emptyStateButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  manualButton: {
+    backgroundColor: '#F3F4F6',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  manualButtonText: {
+    color: '#3B82F6',
+    marginLeft: 6,
   },
   sourcesContainer: {
     marginHorizontal: 24,
@@ -310,7 +411,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 20,
   },
   connectButtonText: {
     color: '#FFFFFF',
@@ -356,7 +456,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4,
   },
-  workoutsContainer: {
+  activitiesContainer: {
     marginHorizontal: 24,
   },
   emptyState: {
@@ -382,10 +482,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  workoutsList: {
+  activitiesList: {
     gap: 16,
   },
-  workoutCard: {
+  activityCard: {
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
@@ -395,46 +495,79 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
-  workoutHeader: {
+  activityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  workoutType: {
+  activityType: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  workoutTypeText: {
+  activityTypeText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
     marginLeft: 6,
   },
-  workoutDate: {
+  manualBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  manualBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6366F1',
+  },
+  activityDate: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  workoutDateText: {
+  activityDateText: {
     fontSize: 14,
     color: '#6B7280',
     marginLeft: 6,
   },
-  workoutStats: {
+  activityName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  activityStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  workoutStat: {
+  activityStat: {
     alignItems: 'center',
   },
-  workoutStatValue: {
+  activityStatValue: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
   },
-  workoutStatLabel: {
+  activityStatLabel: {
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
+  },
+  videoIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  videoIndicatorText: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    fontWeight: '600',
+    marginLeft: 6,
   },
 });
