@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
@@ -40,6 +41,12 @@ export function useRunTracking() {
   // Request location permissions on mount
   useEffect(() => {
     (async () => {
+      // Location tracking is not fully supported on web
+      if (Platform.OS === 'web') {
+        setHasLocationPermission(false);
+        return;
+      }
+      
       const { status } = await Location.requestForegroundPermissionsAsync();
       setHasLocationPermission(status === 'granted');
     })();
@@ -131,8 +138,14 @@ export function useRunTracking() {
 
   // Helper to safely remove the location subscription
   const removeLocationSubscription = useCallback(() => {
+    // Skip subscription removal on web platform
+    if (Platform.OS === 'web') {
+      locationSubscriptionRef.current = null;
+      return;
+    }
+    
     const sub = locationSubscriptionRef.current;
-    if (sub && typeof sub.remove === 'function') {
+    if (sub && sub.remove && typeof sub.remove === 'function') {
       sub.remove();
       locationSubscriptionRef.current = null;
     }
@@ -140,7 +153,7 @@ export function useRunTracking() {
 
   // Start a new run
   const startRun = useCallback(async () => {
-    if (!hasLocationPermission || !user) return;
+    if (!hasLocationPermission || !user || Platform.OS === 'web') return;
 
     setIsRunning(true);
     setIsPaused(false);
@@ -192,7 +205,7 @@ export function useRunTracking() {
 
   // Resume the run
   const resumeRun = useCallback(async () => {
-    if (!isPaused) return;
+    if (!isPaused || Platform.OS === 'web') return;
     setIsPaused(false);
     if (lastPauseTimeRef.current) {
       pausedTimeAccumRef.current += Date.now() - lastPauseTimeRef.current;
