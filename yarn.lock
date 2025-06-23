@@ -1087,6 +1087,15 @@
     find-up "^5.0.0"
     js-yaml "^4.1.0"
 
+"@fal-ai/client@^1.5.0":
+  version "1.5.0"
+  resolved "https://registry.npmjs.org/@fal-ai/client/-/client-1.5.0.tgz"
+  integrity sha512-e0WtcbSjbwKFCOwAex3lRDba1iMY42QAwLZuae7oc5xNav2+HdprE9QWYdsDS3nyr0GOttEpUgsBa/c/AKAguA==
+  dependencies:
+    "@msgpack/msgpack" "^3.0.0-beta2"
+    eventsource-parser "^1.1.2"
+    robot3 "^0.4.1"
+
 "@isaacs/cliui@^8.0.2":
   version "8.0.2"
   resolved "https://registry.npmjs.org/@isaacs/cliui/-/cliui-8.0.2.tgz"
@@ -1240,6 +1249,11 @@
   version "0.1.2"
   resolved "https://registry.npmjs.org/@lucide/lab/-/lab-0.1.2.tgz"
   integrity sha512-VprF2BJa7ZuTGOhUd5cf8tHJXyL63wdxcGieAiVVoR9hO0YmPsnZO0AGqDiX2/br+/MC6n8BoJcmPilltOXIJA==
+
+"@msgpack/msgpack@^3.0.0-beta2":
+  version "3.1.2"
+  resolved "https://registry.npmjs.org/@msgpack/msgpack/-/msgpack-3.1.2.tgz"
+  integrity sha512-JEW4DEtBzfe8HvUYecLU9e6+XJnKDlUAIve8FvPzF3Kzs6Xo/KuZkZJsDH0wJXl/qEZbeeE7edxDNY3kMs39hQ==
 
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"
@@ -2610,6 +2624,11 @@ event-target-shim@^5.0.0, event-target-shim@^5.0.1:
   resolved "https://registry.npmjs.org/event-target-shim/-/event-target-shim-5.0.1.tgz"
   integrity sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==
 
+eventsource-parser@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.npmjs.org/eventsource-parser/-/eventsource-parser-1.1.2.tgz"
+  integrity sha512-v0eOBUbiaFojBu2s2NPBfYUoRR9GjcDNvCXVaqEf5vVfpIAh9f8RCo4vXTP8c63QRKCFwoLpMpTdPwwhEKVgzA==
+
 exec-async@^2.2.0:
   version "2.2.0"
   resolved "https://registry.npmjs.org/exec-async/-/exec-async-2.2.0.tgz"
@@ -2667,6 +2686,18 @@ expo-haptics@~14.1.3:
   resolved "https://registry.npmjs.org/expo-haptics/-/expo-haptics-14.1.4.tgz"
   integrity sha512-QZdE3NMX74rTuIl82I+n12XGwpDWKb8zfs5EpwsnGi/D/n7O2Jd4tO5ivH+muEG/OCJOMq5aeaVDqqaQOhTkcA==
 
+expo-image-loader@~5.1.0:
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/expo-image-loader/-/expo-image-loader-5.1.0.tgz"
+  integrity sha512-sEBx3zDQIODWbB5JwzE7ZL5FJD+DK3LVLWBVJy6VzsqIA6nDEnSFnsnWyCfCTSvbGigMATs1lgkC2nz3Jpve1Q==
+
+expo-image-picker@~16.1.3:
+  version "16.1.4"
+  resolved "https://registry.npmjs.org/expo-image-picker/-/expo-image-picker-16.1.4.tgz"
+  integrity sha512-bTmmxtw1AohUT+HxEBn2vYwdeOrj1CLpMXKjvi9FKSoSbpcarT4xxI0z7YyGwDGHbrJqyyic3I9TTdP2J2b4YA==
+  dependencies:
+    expo-image-loader "~5.1.0"
+
 expo-keep-awake@~14.1.4:
   version "14.1.4"
   resolved "https://registry.npmjs.org/expo-keep-awake/-/expo-keep-awake-14.1.4.tgz"
@@ -2689,6 +2720,11 @@ expo-location@~18.1.1:
   version "18.1.5"
   resolved "https://registry.npmjs.org/expo-location/-/expo-location-18.1.5.tgz"
   integrity sha512-/ugxS4Ort9DbKD0Do6xn4TjeHaA/by5vv0p0PrY5Zbcez1S0AfrQn/4JG/8PLT2imngMwZU9TDKrgxqJQ4RuPQ==
+
+expo-media-library@~17.1.3:
+  version "17.1.7"
+  resolved "https://registry.npmjs.org/expo-media-library/-/expo-media-library-17.1.7.tgz"
+  integrity sha512-hLCoMvlhjtt+iYxPe71P1F6t06mYGysuNOfjQzDbbf64PCkglCZJYmywPyUSV1V5Hu9DhRj//gEg+Ki+7VWXog==
 
 expo-modules-autolinking@2.1.12:
   version "2.1.12"
@@ -2729,6 +2765,11 @@ expo-router@~5.0.2:
     semver "~7.6.3"
     server-only "^0.0.1"
     shallowequal "^1.1.0"
+
+expo-sharing@~13.1.3:
+  version "13.1.5"
+  resolved "https://registry.npmjs.org/expo-sharing/-/expo-sharing-13.1.5.tgz"
+  integrity sha512-X/5sAEiWXL2kdoGE3NO5KmbfcmaCWuWVZXHu8OQef7Yig4ZgHFkGD11HKJ5KqDrDg+SRZe4ISd6MxE7vGUgm4w==
 
 expo-splash-screen@~0.30.6:
   version "0.30.9"
@@ -4484,6 +4525,16 @@ rimraf@^3.0.2:
   integrity sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==
   dependencies:
     glob "^7.1.3"
+
+rn-apple-healthkit@^0.8.0:
+  version "0.8.0"
+  resolved "https://registry.npmjs.org/rn-apple-healthkit/-/rn-apple-healthkit-0.8.0.tgz"
+  integrity sha512-LymIWk9lwIkcGIACveCxvp2jKXTTrDbdUYgcac+wuaSLPPpLfZqrQ0fz+QACYx5cSwAn6Uj6NcJ5+QkwPjY+5g==
+
+robot3@^0.4.1:
+  version "0.4.1"
+  resolved "https://registry.npmjs.org/robot3/-/robot3-0.4.1.tgz"
+  integrity sha512-hzjy826lrxzx8eRgv80idkf8ua1JAepRc9Efdtj03N3KNJuznQCPlyCJ7gnUmDFwZCLQjxy567mQVKmdv2BsXQ==
 
 safe-buffer@5.2.1:
   version "5.2.1"
