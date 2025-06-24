@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Platform } from 'react-native';
 import {
   View,
   Text,
