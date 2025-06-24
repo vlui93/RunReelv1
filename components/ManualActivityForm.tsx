@@ -486,40 +486,93 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           control={control}
           name="activity_date"
           render={({ field: { onChange, value } }) => (
-            <DateTimePicker
-              value={value || ''}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) onChange(selectedDate);
-              }}
-              maximumDate={new Date()}
-              minimumDate={new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)}
-            />
+            <>
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Calendar size={20} color="#6B7280" />
+                  <Text style={styles.dateTimeText}>
+                    {value ? value.toLocaleDateString() : ''}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD"
+                value={value ? value.toISOString().slice(0, 10) : ''}
+                onChangeText={text => {
+                  // Accepts YYYY-MM-DD format
+                  const parsed = new Date(text);
+                  if (!isNaN(parsed.getTime())) onChange(parsed);
+                }}
+                keyboardType={Platform.OS === 'web' ? 'text' : 'numeric'}
+              />
+              {showDatePicker && Platform.OS !== 'web' && (
+                <DateTimePicker
+                  value={value || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) onChange(selectedDate);
+                  }}
+                />
+              )}
+            </>
           )}
         />
       )}
-
+      
       {showStartTimePicker && (
         <Controller
           control={control}
           name="start_time"
           render={({ field: { onChange, value } }) => (
-            <DateTimePicker
-              value={value || ''}
-              mode="time"
-              display="default"
-              onChange={(event, selectedTime) => {
-                setShowStartTimePicker(false);
-                if (selectedTime) {
-                  onChange(selectedTime);
-                  // Auto-adjust end time to be 30 minutes later
-                  const endTime = new Date(selectedTime.getTime() + 30 * 60 * 1000);
-                  setValue('end_time', endTime);
+            <>
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowStartTimePicker(true)}
+                >
+                  <Clock size={20} color="#6B7280" />
+                  <Text style={styles.dateTimeText}>
+                    Start: {value ? value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TextInput
+                style={styles.input}
+                placeholder="HH:MM (24h)"
+                value={
+                  value
+                    ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2,'0')}`
+                    : ''
                 }
-              }}
-            />
+                onChangeText={text => {
+                  // Accepts HH:MM format
+                  if (/^\d{2}:\d{2}$/.test(text)) {
+                    const [hours, minutes] = text.split(':').map(Number);
+                    const updated = new Date(value || new Date());
+                    updated.setHours(hours, minutes, 0, 0);
+                    onChange(updated);
+                  }
+                }}
+                keyboardType={Platform.OS === 'web' ? 'text' : 'numeric'}
+              />
+              {showStartTimePicker && Platform.OS !== 'web' && (
+                <DateTimePicker
+                  value={value || new Date()}
+                  mode="time"
+                  display="default"
+                  onChange={(event, selectedTime) => {
+                    setShowStartTimePicker(false);
+                    if (selectedTime) onChange(selectedTime);
+                  }}
+                />
+              )}
+            </>
           )}
         />
       )}
@@ -529,15 +582,48 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           control={control}
           name="end_time"
           render={({ field: { onChange, value } }) => (
-            <DateTimePicker
-              value={value || ''}
-              mode="time"
-              display="default"
-              onChange={(event, selectedTime) => {
-                setShowEndTimePicker(false);
-                if (selectedTime) onChange(selectedTime);
-              }}
-            />
+            <>
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowEndTimePicker(true)}
+                >
+                  <Clock size={20} color="#6B7280" />
+                  <Text style={styles.dateTimeText}>
+                    End: {value ? value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TextInput
+                style={styles.input}
+                placeholder="HH:MM (24h)"
+                value={
+                  value
+                    ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2,'0')}`
+                    : ''
+                }
+                onChangeText={text => {
+                  if (/^\d{2}:\d{2}$/.test(text)) {
+                    const [hours, minutes] = text.split(':').map(Number);
+                    const updated = new Date(value || new Date());
+                    updated.setHours(hours, minutes, 0, 0);
+                    onChange(updated);
+                  }
+                }}
+                keyboardType={Platform.OS === 'web' ? 'text' : 'numeric'}
+              />
+              {showEndTimePicker && Platform.OS !== 'web' && (
+                <DateTimePicker
+                  value={value || new Date()}
+                  mode="time"
+                  display="default"
+                  onChange={(event, selectedTime) => {
+                    setShowEndTimePicker(false);
+                    if (selectedTime) onChange(selectedTime);
+                  }}
+                />
+              )}
+            </>
           )}
         />
       )}
