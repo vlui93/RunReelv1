@@ -197,7 +197,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
             <TextInput
               style={[styles.input, errors.activity_name && styles.inputError]}
               placeholder="e.g., Morning Run in Central Park"
-              value={value}
+              value={value || ''}
               onChangeText={onChange}
               onBlur={onBlur}
             />
@@ -487,7 +487,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           name="activity_date"
           render={({ field: { onChange, value } }) => (
             <DateTimePicker
-              value={value}
+              value={value || ''}
               mode="date"
               display="default"
               onChange={(event, selectedDate) => {
@@ -507,7 +507,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           name="start_time"
           render={({ field: { onChange, value } }) => (
             <DateTimePicker
-              value={value}
+              value={value || ''}
               mode="time"
               display="default"
               onChange={(event, selectedTime) => {
@@ -530,7 +530,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           name="end_time"
           render={({ field: { onChange, value } }) => (
             <DateTimePicker
-              value={value}
+              value={value || ''}
               mode="time"
               display="default"
               onChange={(event, selectedTime) => {
