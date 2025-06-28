@@ -164,74 +164,6 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
     }
   };
 
-  // Web-compatible date/time input rendering
-  const renderDateTimeInput = (
-    label: string,
-    value: Date,
-    onChange: (date: Date) => void,
-    type: 'date' | 'time' = 'date'
-  ) => {
-    if (Platform.OS === 'web') {
-      const inputType = type === 'date' ? 'date' : 'time';
-      const inputValue = type === 'date' 
-        ? value.toISOString().split('T')[0]
-        : value.toTimeString().slice(0, 5);
-
-      return (
-        <View style={styles.webInputContainer}>
-          <Text style={styles.webInputLabel}>{label}</Text>
-          <input
-            type={inputType}
-            value={inputValue}
-            onChange={(e) => {
-              if (type === 'date') {
-                const newDate = new Date(e.target.value);
-                onChange(newDate);
-              } else {
-                const [hours, minutes] = e.target.value.split(':');
-                const newTime = new Date(value);
-                newTime.setHours(parseInt(hours), parseInt(minutes));
-                onChange(newTime);
-              }
-            }}
-            style={{
-              width: '100%',
-              padding: 12,
-              borderRadius: 8,
-              border: '1px solid #D1D5DB',
-              fontSize: 16,
-              backgroundColor: '#FFFFFF',
-            }}
-          />
-        </View>
-      );
-    }
-
-    // Native mobile rendering
-    return (
-      <TouchableOpacity
-        style={styles.dateTimeButton}
-        onPress={() => {
-          if (type === 'date') setShowDatePicker(true);
-          else if (label.includes('Start')) setShowStartTimePicker(true);
-          else setShowEndTimePicker(true);
-        }}
-      >
-        {type === 'date' ? (
-          <Calendar size={20} color="#6B7280" />
-        ) : (
-          <Clock size={20} color="#6B7280" />
-        )}
-        <Text style={styles.dateTimeText}>
-          {type === 'date' 
-            ? value.toLocaleDateString()
-            : `${label}: ${value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-          }
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
@@ -304,26 +236,115 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
         <Controller
           control={control}
           name="activity_date"
-          render={({ field: { value, onChange } }) => 
-            renderDateTimeInput('Date', value, onChange, 'date')
-          }
+          render={({ field: { onChange, value } }) => (
+            <View style={styles.dateInputContainer}>
+              <Calendar size={20} color="#6B7280" style={styles.dateIcon} />
+              <TextInput
+                style={styles.dateInput}
+                value={value.toLocaleDateString()}
+                placeholder="Select date"
+                editable={false}
+                onPressIn={() => {
+                  if (Platform.OS === 'web') {
+                    // Create a hidden date input for web
+                    const input = document.createElement('input');
+                    input.type = 'date';
+                    input.value = value.toISOString().split('T')[0];
+                    input.style.position = 'absolute';
+                    input.style.left = '-9999px';
+                    document.body.appendChild(input);
+                    
+                    input.addEventListener('change', (e) => {
+                      const selectedDate = new Date(e.target.value);
+                      onChange(selectedDate);
+                      document.body.removeChild(input);
+                    });
+                    
+                    input.click();
+                  } else {
+                    setShowDatePicker(true);
+                  }
+                }}
+              />
+            </View>
+          )}
         />
 
         <View style={styles.timeRow}>
           <Controller
             control={control}
             name="start_time"
-            render={({ field: { value, onChange } }) => 
-              renderDateTimeInput('Start', value, onChange, 'time')
-            }
+            render={({ field: { onChange, value } }) => (
+              <View style={[styles.dateInputContainer, styles.timeInput]}>
+                <Clock size={20} color="#6B7280" style={styles.dateIcon} />
+                <TextInput
+                  style={styles.dateInput}
+                  value={`Start: ${value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                  placeholder="Start time"
+                  editable={false}
+                  onPressIn={() => {
+                    if (Platform.OS === 'web') {
+                      const input = document.createElement('input');
+                      input.type = 'time';
+                      input.value = value.toTimeString().slice(0, 5);
+                      input.style.position = 'absolute';
+                      input.style.left = '-9999px';
+                      document.body.appendChild(input);
+                      
+                      input.addEventListener('change', (e) => {
+                        const [hours, minutes] = e.target.value.split(':');
+                        const newTime = new Date(value);
+                        newTime.setHours(parseInt(hours), parseInt(minutes));
+                        onChange(newTime);
+                        document.body.removeChild(input);
+                      });
+                      
+                      input.click();
+                    } else {
+                      setShowStartTimePicker(true);
+                    }
+                  }}
+                />
+              </View>
+            )}
           />
 
           <Controller
             control={control}
             name="end_time"
-            render={({ field: { value, onChange } }) => 
-              renderDateTimeInput('End', value, onChange, 'time')
-            }
+            render={({ field: { onChange, value } }) => (
+              <View style={[styles.dateInputContainer, styles.timeInput]}>
+                <Clock size={20} color="#6B7280" style={styles.dateIcon} />
+                <TextInput
+                  style={styles.dateInput}
+                  value={`End: ${value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                  placeholder="End time"
+                  editable={false}
+                  onPressIn={() => {
+                    if (Platform.OS === 'web') {
+                      const input = document.createElement('input');
+                      input.type = 'time';
+                      input.value = value.toTimeString().slice(0, 5);
+                      input.style.position = 'absolute';
+                      input.style.left = '-9999px';
+                      document.body.appendChild(input);
+                      
+                      input.addEventListener('change', (e) => {
+                        const [hours, minutes] = e.target.value.split(':');
+                        const newTime = new Date(value);
+                        newTime.setHours(parseInt(hours), parseInt(minutes));
+                        onChange(newTime);
+                        document.body.removeChild(input);
+                      });
+                      
+                      input.click();
+                    } else {
+                      setShowEndTimePicker(true);
+                    }
+                  }}
+                />
+              </View>
+            )}
           />
         </View>
 
@@ -698,20 +719,30 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginLeft: 12,
   },
-  webInputContainer: {
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  webInputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
+  dateIcon: {
+    marginRight: 12,
+  },
+  dateInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
   },
   timeRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  timeButton: {
+  timeInput: {
     flex: 1,
   },
   durationText: {
