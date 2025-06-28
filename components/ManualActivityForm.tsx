@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button, Input } from '@rneui/themed';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -93,6 +94,9 @@ const validationSchema = yup.object().shape({
 
 export default function ManualActivityForm({ onSubmit, onCancel, loading }: ManualActivityFormProps) {
   const [selectedAchievements, setSelectedAchievements] = useState<string[]>([]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const {
     control,
