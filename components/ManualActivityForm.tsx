@@ -12,7 +12,6 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
   Calendar, 
   Clock, 
@@ -90,9 +89,6 @@ const validationSchema = yup.object().shape({
 });
 
 export default function ManualActivityForm({ onSubmit, onCancel, loading }: ManualActivityFormProps) {
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [selectedAchievements, setSelectedAchievements] = useState<string[]>([]);
 
   const {
@@ -143,6 +139,21 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
     );
   };
 
+  // Helper function to format date for input
+  const formatDateForInput = (date: Date): string => {
+    return date.toISOString().split('T')[0];
+  };
+
+  // Helper function to format time for input
+  const formatTimeForInput = (date: Date): string => {
+    return date.toTimeString().slice(0, 5);
+  };
+
+  // Helper function to parse date from input
+  const parseDateFromInput = (dateStr: string, timeStr: string): Date => {
+    const date = new Date(`${dateStr}T${timeStr}:00`);
+    return date;
+  };
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
@@ -479,121 +490,6 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           {loading ? 'Saving...' : 'Save Activity'}
         </Text>
       </TouchableOpacity>
-
-      {/* Date/Time Pickers */}
-      {showDatePicker && (
-        <Controller
-          control={control}
-          name="activity_date"
-          render={({ field: { onChange, value } }) => (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
-                value={value ? value.toISOString().slice(0, 10) : ''}
-                onChangeText={text => {
-                  // Accepts YYYY-MM-DD format
-                  const parsed = new Date(text);
-                  if (!isNaN(parsed.getTime())) onChange(parsed);
-                }}
-                keyboardType={Platform.OS === 'web' ? 'text' : 'numeric'}
-              />
-              {showDatePicker && Platform.OS !== 'web' && (
-                <DateTimePicker
-                  value={value || new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false);
-                    if (selectedDate) onChange(selectedDate);
-                  }}
-                />
-              )}
-            </>
-          )}
-        />
-      )}
-      
-      {showStartTimePicker && (
-        <Controller
-          control={control}
-          name="start_time"
-          render={({ field: { onChange, value } }) => (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder="HH:MM (24h)"
-                value={
-                  value
-                    ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2,'0')}`
-                    : ''
-                }
-                onChangeText={text => {
-                  // Accepts HH:MM format
-                  if (/^\d{2}:\d{2}$/.test(text)) {
-                    const [hours, minutes] = text.split(':').map(Number);
-                    const updated = new Date(value || new Date());
-                    updated.setHours(hours, minutes, 0, 0);
-                    onChange(updated);
-                  }
-                }}
-                keyboardType={Platform.OS === 'web' ? 'text' : 'numeric'}
-              />
-              {showStartTimePicker && Platform.OS !== 'web' && (
-                <DateTimePicker
-                  value={value || new Date()}
-                  mode="time"
-                  display="default"
-                  onChange={(event, selectedTime) => {
-                    setShowStartTimePicker(false);
-                    if (selectedTime) onChange(selectedTime);
-                  }}
-                />
-              )}
-            </>
-          )}
-        />
-      )}
-
-      {showEndTimePicker && (
-        <Controller
-          control={control}
-          name="end_time"
-          render={({ field: { onChange, value } }) => (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder="HH:MM (24h)"
-                value={
-                  value
-                    ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2,'0')}`
-                    : ''
-                }
-                onChangeText={text => {
-                  if (/^\d{2}:\d{2}$/.test(text)) {
-                    const [hours, minutes] = text.split(':').map(Number);
-                    const updated = new Date(value || new Date());
-                    updated.setHours(hours, minutes, 0, 0);
-                    onChange(updated);
-                  }
-                }}
-                keyboardType={Platform.OS === 'web' ? 'text' : 'numeric'}
-              />
-              {showEndTimePicker && Platform.OS !== 'web' && (
-                <DateTimePicker
-                  value={value || new Date()}
-                  mode="time"
-                  display="default"
-                  onChange={(event, selectedTime) => {
-                    setShowEndTimePicker(false);
-                    if (selectedTime) onChange(selectedTime);
-                  }}
-                />
-              )}
-            </>
-          )}
-        />
-      )}
     </ScrollView>
   );
 }
@@ -659,6 +555,9 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: 12,
   },
+  timeInputContainer: {
+    flex: 1,
+  },
   inputIcon: {
     position: 'absolute',
     left: 16,
@@ -702,28 +601,9 @@ const styles = StyleSheet.create({
   activityTypeTextSelected: {
     color: '#FFFFFF',
   },
-  dateTimeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  dateTimeText: {
-    fontSize: 16,
-    color: '#1F2937',
-    marginLeft: 8,
-  },
   timeRow: {
     flexDirection: 'row',
     gap: 8,
-  },
-  timeButton: {
-    flex: 1,
   },
   durationText: {
     fontSize: 14,
