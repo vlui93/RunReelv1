@@ -132,7 +132,7 @@ class EnhancedTavusService {
       const payload = {
         replica_id: 'default-replica', // In production, this would be user-specific
         script: script,
-        video_name: `achievement_${achievement.id}_${Date.now()}`,
+        video_name: `activity_${achievement.id}_${Date.now()}`,
         callback_url: null,
         properties: {
           ...videoConfig,
@@ -141,7 +141,7 @@ class EnhancedTavusService {
             category: achievement.category,
             value: achievement.value,
             description: achievement.description,
-            workout_type: achievement.workout?.workout_type || ''
+            activity_id: achievement.id
           }
         }
       };

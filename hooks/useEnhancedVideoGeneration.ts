@@ -76,7 +76,6 @@ export function useEnhancedVideoGeneration() {
       const videoGenRecord = {
         user_id: authUser.id, // Use authenticated user ID
         run_id: null, // For achievement videos, we don't have a run_id
-        achievement_id: achievement.id,
         template_id: templateId,
         status: 'pending' as const,
         video_format: customization.format,
@@ -156,7 +155,6 @@ export function useEnhancedVideoGeneration() {
           .from('video_generations')
           .update({
             status: 'completed',
-            video_url: completedVideo.video_url,
           })
           .eq('id', videoGeneration.id);
 
@@ -206,7 +204,6 @@ export function useEnhancedVideoGeneration() {
               status: 'failed',
             })
             .eq('user_id', authUser.id)
-            .eq('achievement_id', achievement.id)
             .in('status', ['pending', 'processing']);
         }
       } catch (updateError) {

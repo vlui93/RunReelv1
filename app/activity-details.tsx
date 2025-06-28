@@ -165,6 +165,7 @@ export default function ActivityDetailsScreen() {
           start_time: activity.start_time,
           distance: (activity.distance || activity.distance_km || 0) * 1000,
           duration: activity.duration || activity.duration_seconds || 0,
+          id: activity.id, // Add activity ID for run_id reference
         },
       };
 
