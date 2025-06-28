@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { Button, Input } from '@rneui/themed';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -25,6 +26,8 @@ import {
   X
 } from 'lucide-react-native';
 import { ActivityFormData } from '@/hooks/useManualActivities';
+import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 interface ManualActivityFormProps {
   onSubmit: (data: ActivityFormData) => Promise<void>;
