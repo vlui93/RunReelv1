@@ -276,10 +276,21 @@ export default function ActivityScreen() {
                   </View>
                   <View style={styles.activityStat}>
                     <Text style={styles.activityStatValue}>
-                      {activity.pace_avg ? formatPace(activity.pace_avg) : 
-                       (activity.distance_km || activity.distance) && (activity.duration_seconds || activity.duration) ?
-                       formatPace(((activity.duration_seconds || activity.duration) / 60) / (activity.distance_km || activity.distance)) :
-                       '--:--'}
+                      {(() => {
+                        // Use stored pace if available
+                        if (activity.pace_avg) return formatPace(activity.pace_avg);
+                        
+                        // Calculate pace for distance-based activities
+                        const distance = activity.distance_km || activity.distance;
+                        const duration = activity.duration_seconds || activity.duration;
+                        
+                        if (distance && duration && distance > 0) {
+                          const paceMinPerKm = (duration / 60) / distance;
+                          return formatPace(paceMinPerKm);
+                        }
+                        
+                        return '--:--';
+                      })()}
                     </Text>
                     <Text style={styles.activityStatLabel}>Pace</Text>
                   </View>

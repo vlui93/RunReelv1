@@ -83,10 +83,10 @@ export default function ActivityDetailsScreen() {
   const { limits } = useApiUsage();
 
   useEffect(() => {
-    if (activityId && activityType) {
+    if (activityId && activityType && user) {
       fetchActivityDetails();
     }
-  }, [activityId, activityType]);
+  }, [activityId, activityType, user]);
 
   const fetchActivityDetails = async () => {
     if (!user || !activityId) return;
@@ -111,13 +111,21 @@ export default function ActivityDetailsScreen() {
           .single());
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching activity details:', error);
+        Alert.alert('Error', 'Failed to load activity details');
+        router.back();
+        return;
+      }
 
       if (data) {
         setActivity({
           ...data,
           source_type: activityType,
         });
+      } else {
+        Alert.alert('Error', 'Activity not found');
+        router.back();
       }
     } catch (error) {
       console.error('Error fetching activity details:', error);
@@ -276,6 +284,7 @@ export default function ActivityDetailsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+        <Activity size={48} color="#3B82F6" />
         <Text style={styles.loadingText}>Loading activity details...</Text>
       </View>
     );
@@ -552,10 +561,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F9FAFB',
+    padding: 24,
   },
   loadingText: {
     fontSize: 16,
     color: '#6B7280',
+    marginTop: 16,
+    textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
