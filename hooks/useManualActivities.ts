@@ -104,6 +104,7 @@ export function useManualActivities() {
         weather_conditions: formData.weather_conditions,
       };
 
+      console.log('Creating activity with data:', activityData);
       const { data, error } = await supabase
         .from('manual_activities')
         .insert(activityData)
@@ -112,6 +113,7 @@ export function useManualActivities() {
 
       if (error) throw error;
 
+      console.log('Activity created successfully:', data);
       // Refresh activities list
       await fetchActivities();
       

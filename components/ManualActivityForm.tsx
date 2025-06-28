@@ -487,17 +487,6 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           name="activity_date"
           render={({ field: { onChange, value } }) => (
             <>
-              {Platform.OS !== 'web' && (
-                <TouchableOpacity
-                  style={styles.dateTimeButton}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Calendar size={20} color="#6B7280" />
-                  <Text style={styles.dateTimeText}>
-                    {value ? value.toLocaleDateString() : ''}
-                  </Text>
-                </TouchableOpacity>
-              )}
               <TextInput
                 style={styles.input}
                 placeholder="YYYY-MM-DD"
@@ -531,17 +520,6 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           name="start_time"
           render={({ field: { onChange, value } }) => (
             <>
-              {Platform.OS !== 'web' && (
-                <TouchableOpacity
-                  style={styles.dateTimeButton}
-                  onPress={() => setShowStartTimePicker(true)}
-                >
-                  <Clock size={20} color="#6B7280" />
-                  <Text style={styles.dateTimeText}>
-                    Start: {value ? value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                  </Text>
-                </TouchableOpacity>
-              )}
               <TextInput
                 style={styles.input}
                 placeholder="HH:MM (24h)"
@@ -583,17 +561,6 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           name="end_time"
           render={({ field: { onChange, value } }) => (
             <>
-              {Platform.OS !== 'web' && (
-                <TouchableOpacity
-                  style={styles.dateTimeButton}
-                  onPress={() => setShowEndTimePicker(true)}
-                >
-                  <Clock size={20} color="#6B7280" />
-                  <Text style={styles.dateTimeText}>
-                    End: {value ? value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                  </Text>
-                </TouchableOpacity>
-              )}
               <TextInput
                 style={styles.input}
                 placeholder="HH:MM (24h)"
