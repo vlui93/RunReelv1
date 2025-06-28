@@ -52,7 +52,9 @@ export function useEnhancedVideoGeneration() {
     customization: VideoCustomization,
     templateId?: string
   ) => {
-    if (!user) return;
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
 
     setState({
       isGenerating: true,
@@ -64,23 +66,37 @@ export function useEnhancedVideoGeneration() {
     });
 
     try {
-      // Create video generation record
+      // Verify user authentication
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Create video generation record with proper user_id
+      const videoGenRecord = {
+        user_id: authUser.id, // Use authenticated user ID
+        run_id: null,
+        achievement_id: achievement.id,
+        template_id: templateId,
+        status: 'pending' as const,
+        video_format: customization.format,
+        generation_config: customization
+      };
+
+      console.log('Creating video generation record:', videoGenRecord);
+
       const { data: videoGeneration, error: insertError } = await supabase
         .from('video_generations')
-        .insert({
-          run_id: null,
-          achievement_id: achievement.id,
-          template_id: templateId,
-          status: 'pending',
-          video_format: customization.format,
-          generation_config: customization
-        })
+        .insert([videoGenRecord])
         .select()
         .single();
 
       if (insertError) {
-        throw new Error('Failed to create video generation record');
+        console.error('Video generation record error:', insertError);
+        throw new Error(`Failed to create video generation record: ${insertError.message}`);
       }
+
+      console.log('Video generation record created:', videoGeneration);
 
       setState(prev => ({
         ...prev,
@@ -180,13 +196,22 @@ export function useEnhancedVideoGeneration() {
         currentStep: 'failed'
       });
 
-      // Update video generation record with error
-      await supabase
-        .from('video_generations')
-        .update({
-          status: 'failed',
-        })
-        .eq('id', videoGeneration?.id);
+      // Update video generation record with error if it was created
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          await supabase
+            .from('video_generations')
+            .update({
+              status: 'failed',
+            })
+            .eq('user_id', authUser.id)
+            .eq('achievement_id', achievement.id)
+            .eq('status', 'pending');
+        }
+      } catch (updateError) {
+        console.error('Failed to update video generation record with error:', updateError);
+      }
 
       throw error;
     }
@@ -197,6 +222,12 @@ export function useEnhancedVideoGeneration() {
     format: 'square' | 'vertical' | 'horizontal' = 'square'
   ) => {
     if (!user || achievements.length === 0) return;
+
+    // Verify user authentication
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser) {
+      throw new Error('User not authenticated');
+    }
 
     setState({
       isGenerating: true,
@@ -217,6 +248,7 @@ export function useEnhancedVideoGeneration() {
           await supabase
             .from('video_generations')
             .insert({
+              user_id: authUser.id, // Include user_id
               achievement_id: achievement.id,
               tavus_job_id: success.video_id,
               status: 'processing',

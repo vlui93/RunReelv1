@@ -81,29 +81,41 @@ export type Database = {
       video_generations: {
         Row: {
           id: string
+          user_id: string
           run_id: string | null
           achievement_id: string | null
           tavus_job_id: string | null
           status: string
           video_url: string | null
+          video_format: string | null
+          template_id: string | null
+          generation_config: any | null
           created_at: string
         }
         Insert: {
           id?: string
+          user_id: string
           run_id?: string | null
           achievement_id?: string | null
           tavus_job_id?: string | null
           status?: string
           video_url?: string | null
+          video_format?: string | null
+          template_id?: string | null
+          generation_config?: any | null
           created_at?: string
         }
         Update: {
           id?: string
+          user_id?: string
           run_id?: string | null
           achievement_id?: string | null
           tavus_job_id?: string | null
           status?: string
           video_url?: string | null
+          video_format?: string | null
+          template_id?: string | null
+          generation_config?: any | null
           created_at?: string
         }
       }
