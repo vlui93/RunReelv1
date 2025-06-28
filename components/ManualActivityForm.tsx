@@ -10,7 +10,6 @@ import {
   Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Button, Input } from '@rneui/themed';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -27,8 +26,6 @@ import {
   X
 } from 'lucide-react-native';
 import { ActivityFormData } from '@/hooks/useManualActivities';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
 
 interface ManualActivityFormProps {
   onSubmit: (data: ActivityFormData) => Promise<void>;
@@ -146,22 +143,6 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
     );
   };
 
-  // Helper function to format date for input
-  const formatDateForInput = (date: Date): string => {
-    return date.toISOString().split('T')[0];
-  };
-
-  // Helper function to format time for input
-  const formatTimeForInput = (date: Date): string => {
-    return date.toTimeString().slice(0, 5);
-  };
-
-  // Helper function to parse date from input
-  const parseDateFromInput = (dateStr: string, timeStr: string): Date => {
-    const date = new Date(`${dateStr}T${timeStr}:00`);
-    return date;
-  };
-
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -255,7 +236,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
         <Controller
           control={control}
           name="activity_date"
-          render={({ field: { onChange, value } }) => (
+          render={({ field: { value } }) => (
             <TouchableOpacity
               style={styles.dateTimeButton}
               onPress={() => setShowDatePicker(true)}
@@ -272,7 +253,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           <Controller
             control={control}
             name="start_time"
-            render={({ field: { onChange, value } }) => (
+            render={({ field: { value } }) => (
               <TouchableOpacity
                 style={[styles.dateTimeButton, styles.timeButton]}
                 onPress={() => setShowStartTimePicker(true)}
@@ -288,7 +269,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           <Controller
             control={control}
             name="end_time"
-            render={({ field: { onChange, value } }) => (
+            render={({ field: { value } }) => (
               <TouchableOpacity
                 style={[styles.dateTimeButton, styles.timeButton]}
                 onPress={() => setShowEndTimePicker(true)}
@@ -614,9 +595,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: 12,
   },
-  timeInputContainer: {
-    flex: 1,
-  },
   inputIcon: {
     position: 'absolute',
     left: 16,
@@ -660,9 +638,28 @@ const styles = StyleSheet.create({
   activityTypeTextSelected: {
     color: '#FFFFFF',
   },
+  dateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+  },
+  dateTimeText: {
+    fontSize: 16,
+    color: '#1F2937',
+    marginLeft: 12,
+  },
   timeRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  timeButton: {
+    flex: 1,
   },
   durationText: {
     fontSize: 14,
