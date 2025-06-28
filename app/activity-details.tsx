@@ -28,6 +28,7 @@ import {
   Download,
   Play,
   Settings,
+  Activity,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
