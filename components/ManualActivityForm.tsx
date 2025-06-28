@@ -154,6 +154,28 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
     const date = new Date(`${dateStr}T${timeStr}:00`);
     return date;
   };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setValue('activity_date', selectedDate);
+    }
+  };
+
+  const onStartTimeChange = (event: any, selectedTime?: Date) => {
+    setShowStartTimePicker(false);
+    if (selectedTime) {
+      setValue('start_time', selectedTime);
+    }
+  };
+
+  const onEndTimeChange = (event: any, selectedTime?: Date) => {
+    setShowEndTimePicker(false);
+    if (selectedTime) {
+      setValue('end_time', selectedTime);
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
@@ -490,6 +512,36 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
           {loading ? 'Saving...' : 'Save Activity'}
         </Text>
       </TouchableOpacity>
+
+      {/* Date/Time Pickers */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={watch('activity_date')}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onDateChange}
+          maximumDate={new Date()}
+          minimumDate={new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)}
+        />
+      )}
+
+      {showStartTimePicker && (
+        <DateTimePicker
+          value={watch('start_time')}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onStartTimeChange}
+        />
+      )}
+
+      {showEndTimePicker && (
+        <DateTimePicker
+          value={watch('end_time')}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onEndTimeChange}
+        />
+      )}
     </ScrollView>
   );
 }
