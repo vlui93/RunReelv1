@@ -255,13 +255,20 @@ export default function ActivityDetailsScreen() {
   };
 
   const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+    if (!seconds || seconds <= 0) return '0m 0s';
+    
+    const totalMinutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
     if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    } else {
+      return `${remainingSeconds}s`;
     }
-    return `${minutes}m ${secs}s`;
   };
 
   const formatPace = (pace: number): string => {
@@ -364,13 +371,17 @@ export default function ActivityDetailsScreen() {
 
       {/* Main Stats */}
       <View style={styles.mainStatsContainer}>
-        <View style={styles.primaryStat}>
-          <Text style={styles.primaryStatValue}>{formatDistance(distance)}</Text>
-          <Text style={styles.primaryStatLabel}>Distance</Text>
+        <View style={styles.primaryStatContainer}>
+          <View style={styles.primaryStat}>
+            <Text style={styles.primaryStatValue}>{formatDistance(distance)}</Text>
+            <Text style={styles.primaryStatLabel}>Distance</Text>
+          </View>
         </View>
-        <View style={styles.primaryStat}>
-          <Text style={styles.primaryStatValue}>{formatTime(duration)}</Text>
-          <Text style={styles.primaryStatLabel}>Duration</Text>
+        <View style={styles.primaryStatContainer}>
+          <View style={styles.primaryStat}>
+            <Text style={styles.primaryStatValue}>{formatTime(duration)}</Text>
+            <Text style={styles.primaryStatLabel}>Duration</Text>
+          </View>
         </View>
       </View>
 
@@ -685,23 +696,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   mainStatsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: 'column',
     marginHorizontal: 24,
     marginBottom: 32,
+    gap: 16,
+  },
+  primaryStatContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   primaryStat: {
     alignItems: 'center',
   },
   primaryStatValue: {
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: '800',
     color: '#1F2937',
   },
   primaryStatLabel: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#6B7280',
-    marginTop: 8,
+    marginTop: 12,
     fontWeight: '500',
   },
   secondaryStatsContainer: {
