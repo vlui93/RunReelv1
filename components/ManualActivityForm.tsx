@@ -164,6 +164,74 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
     }
   };
 
+  // Web-compatible date/time input rendering
+  const renderDateTimeInput = (
+    label: string,
+    value: Date,
+    onChange: (date: Date) => void,
+    type: 'date' | 'time' = 'date'
+  ) => {
+    if (Platform.OS === 'web') {
+      const inputType = type === 'date' ? 'date' : 'time';
+      const inputValue = type === 'date' 
+        ? value.toISOString().split('T')[0]
+        : value.toTimeString().slice(0, 5);
+
+      return (
+        <View style={styles.webInputContainer}>
+          <Text style={styles.webInputLabel}>{label}</Text>
+          <input
+            type={inputType}
+            value={inputValue}
+            onChange={(e) => {
+              if (type === 'date') {
+                const newDate = new Date(e.target.value);
+                onChange(newDate);
+              } else {
+                const [hours, minutes] = e.target.value.split(':');
+                const newTime = new Date(value);
+                newTime.setHours(parseInt(hours), parseInt(minutes));
+                onChange(newTime);
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: 12,
+              borderRadius: 8,
+              border: '1px solid #D1D5DB',
+              fontSize: 16,
+              backgroundColor: '#FFFFFF',
+            }}
+          />
+        </View>
+      );
+    }
+
+    // Native mobile rendering
+    return (
+      <TouchableOpacity
+        style={styles.dateTimeButton}
+        onPress={() => {
+          if (type === 'date') setShowDatePicker(true);
+          else if (label.includes('Start')) setShowStartTimePicker(true);
+          else setShowEndTimePicker(true);
+        }}
+      >
+        {type === 'date' ? (
+          <Calendar size={20} color="#6B7280" />
+        ) : (
+          <Clock size={20} color="#6B7280" />
+        )}
+        <Text style={styles.dateTimeText}>
+          {type === 'date' 
+            ? value.toLocaleDateString()
+            : `${label}: ${value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+          }
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
@@ -236,50 +304,26 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
         <Controller
           control={control}
           name="activity_date"
-          render={({ field: { value } }) => (
-            <TouchableOpacity
-              style={styles.dateTimeButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateTimeText}>
-                {value.toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
-          )}
+          render={({ field: { value, onChange } }) => 
+            renderDateTimeInput('Date', value, onChange, 'date')
+          }
         />
 
         <View style={styles.timeRow}>
           <Controller
             control={control}
             name="start_time"
-            render={({ field: { value } }) => (
-              <TouchableOpacity
-                style={[styles.dateTimeButton, styles.timeButton]}
-                onPress={() => setShowStartTimePicker(true)}
-              >
-                <Clock size={20} color="#6B7280" />
-                <Text style={styles.dateTimeText}>
-                  Start: {value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </TouchableOpacity>
-            )}
+            render={({ field: { value, onChange } }) => 
+              renderDateTimeInput('Start', value, onChange, 'time')
+            }
           />
 
           <Controller
             control={control}
             name="end_time"
-            render={({ field: { value } }) => (
-              <TouchableOpacity
-                style={[styles.dateTimeButton, styles.timeButton]}
-                onPress={() => setShowEndTimePicker(true)}
-              >
-                <Clock size={20} color="#6B7280" />
-                <Text style={styles.dateTimeText}>
-                  End: {value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </TouchableOpacity>
-            )}
+            render={({ field: { value, onChange } }) => 
+              renderDateTimeInput('End', value, onChange, 'time')
+            }
           />
         </View>
 
@@ -501,8 +545,8 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
         </Text>
       </TouchableOpacity>
 
-      {/* Date/Time Pickers */}
-      {showDatePicker && (
+      {/* Native Date/Time Pickers */}
+      {Platform.OS !== 'web' && showDatePicker && (
         <DateTimePicker
           value={watch('activity_date')}
           mode="date"
@@ -513,7 +557,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
         />
       )}
 
-      {showStartTimePicker && (
+      {Platform.OS !== 'web' && showStartTimePicker && (
         <DateTimePicker
           value={watch('start_time')}
           mode="time"
@@ -522,7 +566,7 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
         />
       )}
 
-      {showEndTimePicker && (
+      {Platform.OS !== 'web' && showEndTimePicker && (
         <DateTimePicker
           value={watch('end_time')}
           mode="time"
@@ -653,6 +697,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     marginLeft: 12,
+  },
+  webInputContainer: {
+    marginBottom: 12,
+  },
+  webInputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
   },
   timeRow: {
     flexDirection: 'row',
