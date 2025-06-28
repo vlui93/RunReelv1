@@ -220,7 +220,18 @@ export default function ActivityScreen() {
         ) : (
           <View style={styles.activitiesList}>
             {allActivities.slice(0, 20).map((activity) => (
-              <View key={`${activity.type}-${activity.id}`} style={styles.activityCard}>
+              <TouchableOpacity 
+                key={`${activity.type}-${activity.id}`} 
+                style={styles.activityCard}
+                onPress={() => router.push({
+                  pathname: '/activity-details',
+                  params: { 
+                    activityId: activity.id, 
+                    activityType: activity.type 
+                  }
+                })}
+                activeOpacity={0.7}
+              >
                 <View style={styles.activityHeader}>
                   <View style={styles.activityType}>
                     <Activity size={16} color="#6B7280" />
@@ -265,7 +276,10 @@ export default function ActivityScreen() {
                   </View>
                   <View style={styles.activityStat}>
                     <Text style={styles.activityStatValue}>
-                      {activity.pace_avg ? formatPace(activity.pace_avg) : '--:--'}
+                      {activity.pace_avg ? formatPace(activity.pace_avg) : 
+                       (activity.distance_km || activity.distance) && (activity.duration_seconds || activity.duration) ?
+                       formatPace(((activity.duration_seconds || activity.duration) / 60) / (activity.distance_km || activity.distance)) :
+                       '--:--'}
                     </Text>
                     <Text style={styles.activityStatLabel}>Pace</Text>
                   </View>
@@ -283,7 +297,7 @@ export default function ActivityScreen() {
                     <Text style={styles.videoIndicatorText}>Video Generated</Text>
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
