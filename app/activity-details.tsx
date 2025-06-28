@@ -377,73 +377,71 @@ export default function ActivityDetailsScreen() {
 
       {/* Secondary Stats */}
       <View style={styles.secondaryStatsContainer}>
-        {/* Enhanced metrics grid */}
-        {pace > 0 && (
-          <View style={styles.statCard}>
-            <Target size={24} color="#3B82F6" />
-            <Text style={styles.statValue}>{formatPace(pace, 'min/km')}</Text>
-            <Text style={styles.statLabel}>Avg. Pace</Text>
-          </View>
-        )}
-        
-        {/* Speed calculation */}
-        {pace > 0 && (
-          <View style={styles.statCard}>
-            <Gauge size={24} color="#8B5CF6" />
-            <Text style={styles.statValue}>{formatSpeed(60 / pace)}</Text>
-            <Text style={styles.statLabel}>Avg. Speed</Text>
-          </View>
-        )}
-        
-        {calories > 0 && (
-          <View style={styles.statCard}>
-            <Zap size={24} color="#F59E0B" />
-            <Text style={styles.statValue}>{calories}</Text>
-            <Text style={styles.statLabel}>Calories</Text>
-          </View>
-        )}
-        
-        {heartRate > 0 && (
-          <View style={styles.statCard}>
-            <Heart size={24} color="#EF4444" />
-            <Text style={styles.statValue}>{heartRate} bpm</Text>
-            <Text style={styles.statLabel}>Avg. HR</Text>
-          </View>
-        )}
-        
-        {activity.heart_rate_max && (
-          <View style={styles.statCard}>
-            <Heart size={24} color="#DC2626" />
-            <Text style={styles.statValue}>{activity.heart_rate_max} bpm</Text>
-            <Text style={styles.statLabel}>Max HR</Text>
-          </View>
-        )}
-        
-        {activity.elevation_gain && activity.elevation_gain > 0 && (
-          <View style={styles.statCard}>
-            <TrendingUp size={24} color="#10B981" />
-            <Text style={styles.statValue}>{activity.elevation_gain.toFixed(0)}m</Text>
-            <Text style={styles.statLabel}>Elevation</Text>
-          </View>
-        )}
-        
-        {/* Cadence if available from imported data */}
-        {activity.metadata?.cadence && (
-          <View style={styles.statCard}>
-            <Activity size={24} color="#6366F1" />
-            <Text style={styles.statValue}>{activity.metadata.cadence}</Text>
-            <Text style={styles.statLabel}>Cadence</Text>
-          </View>
-        )}
-        
-        {/* Stride length if available */}
-        {activity.metadata?.stride_length && (
-          <View style={styles.statCard}>
-            <Ruler size={24} color="#059669" />
-            <Text style={styles.statValue}>{activity.metadata.stride_length}m</Text>
-            <Text style={styles.statLabel}>Stride</Text>
-          </View>
-        )}
+        <View style={styles.statsGrid}>
+          {pace > 0 && (
+            <View style={styles.statCard}>
+              <Target size={20} color="#3B82F6" />
+              <Text style={styles.statValue}>{formatPace(pace, 'min/km')}</Text>
+              <Text style={styles.statLabel}>Avg. Pace</Text>
+            </View>
+          )}
+          
+          {pace > 0 && (
+            <View style={styles.statCard}>
+              <Gauge size={20} color="#8B5CF6" />
+              <Text style={styles.statValue}>{formatSpeed(60 / pace)}</Text>
+              <Text style={styles.statLabel}>Avg. Speed</Text>
+            </View>
+          )}
+          
+          {calories > 0 && (
+            <View style={styles.statCard}>
+              <Zap size={20} color="#F59E0B" />
+              <Text style={styles.statValue}>{calories}</Text>
+              <Text style={styles.statLabel}>Calories</Text>
+            </View>
+          )}
+          
+          {heartRate > 0 && (
+            <View style={styles.statCard}>
+              <Heart size={20} color="#EF4444" />
+              <Text style={styles.statValue}>{heartRate} bpm</Text>
+              <Text style={styles.statLabel}>Avg. HR</Text>
+            </View>
+          )}
+          
+          {activity.heart_rate_max && (
+            <View style={styles.statCard}>
+              <Heart size={20} color="#DC2626" />
+              <Text style={styles.statValue}>{activity.heart_rate_max} bpm</Text>
+              <Text style={styles.statLabel}>Max HR</Text>
+            </View>
+          )}
+          
+          {activity.elevation_gain && activity.elevation_gain > 0 && (
+            <View style={styles.statCard}>
+              <TrendingUp size={20} color="#10B981" />
+              <Text style={styles.statValue}>{activity.elevation_gain.toFixed(0)}m</Text>
+              <Text style={styles.statLabel}>Elevation</Text>
+            </View>
+          )}
+          
+          {activity.metadata?.cadence && (
+            <View style={styles.statCard}>
+              <Activity size={20} color="#6366F1" />
+              <Text style={styles.statValue}>{activity.metadata.cadence}</Text>
+              <Text style={styles.statLabel}>Cadence</Text>
+            </View>
+          )}
+          
+          {activity.metadata?.stride_length && (
+            <View style={styles.statCard}>
+              <Activity size={20} color="#059669" />
+              <Text style={styles.statValue}>{activity.metadata.stride_length}m</Text>
+              <Text style={styles.statLabel}>Stride</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Split Times Section */}
@@ -796,15 +794,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 12,
   },
   statCard: {
     backgroundColor: '#FFFFFF',
-    width: '48.5%',
-    padding: 16,
+    width: '48%',
+    padding: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
     elevation: 2,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
@@ -812,13 +810,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
     marginTop: 8,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     marginTop: 4,
   },
