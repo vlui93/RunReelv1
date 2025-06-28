@@ -14,6 +14,41 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+export const refreshSupabaseSchema = async () => {
+  try {
+    // Method 1: Use PostgreSQL NOTIFY command to reload PostgREST schema cache
+    const { data, error } = await supabase
+      .rpc('notify_schema_reload');
+    
+    if (error) {
+      console.error('Schema refresh error:', error);
+      return false;
+    }
+    
+    console.log('Schema refresh successful:', data);
+    return true;
+  } catch (error) {
+    console.error('Schema refresh failed:', error);
+    return false;
+  }
+}
+
+// Alternative method using direct SQL execution
+export const forceSchemaReload = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('execute_sql', { 
+        sql: "NOTIFY pgrst, 'reload schema'" 
+      });
+    
+    console.log('Force schema reload result:', { data, error });
+    return !error;
+  } catch (error) {
+    console.error('Force schema reload failed:', error);
+    return false;
+  }
+}
+
 export type Database = {
   public: {
     Tables: {
