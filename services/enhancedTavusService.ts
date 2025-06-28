@@ -141,7 +141,7 @@ class EnhancedTavusService {
             category: achievement.category,
             value: achievement.value,
             description: achievement.description,
-            workout_type: achievement.workout?.workout_type
+            workout_type: achievement.workout?.workout_type || ''
           }
         }
       };
