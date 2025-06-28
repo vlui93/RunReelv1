@@ -361,14 +361,12 @@ export default function ActivityDetailsScreen() {
 
       {/* Main Stats */}
       <View style={styles.mainStatsContainer}>
-        <View style={styles.primaryStatContainer}>
-          <View style={styles.primaryStat}>
+        <View style={styles.primaryStatsRow}>
+          <View style={styles.primaryStatCard}>
             <Text style={styles.primaryStatValue}>{formatDistance(distance, 'km')}</Text>
             <Text style={styles.primaryStatLabel}>Distance</Text>
           </View>
-        </View>
-        <View style={styles.primaryStatContainer}>
-          <View style={styles.primaryStat}>
+          <View style={styles.primaryStatCard}>
             <Text style={styles.primaryStatValue}>{formatTime(duration)}</Text>
             <Text style={styles.primaryStatLabel}>Duration</Text>
           </View>
@@ -756,15 +754,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   mainStatsContainer: {
-    flexDirection: 'column',
     marginHorizontal: 24,
     marginBottom: 32,
-    gap: 16,
   },
-  primaryStatContainer: {
+  primaryStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  primaryStatCard: {
     backgroundColor: '#FFFFFF',
+    flex: 1,
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#000000',
@@ -772,18 +774,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
-  primaryStat: {
-    alignItems: 'center',
-  },
   primaryStatValue: {
-    fontSize: 42,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1F2937',
   },
   primaryStatLabel: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#6B7280',
-    marginTop: 12,
+    marginTop: 8,
     fontWeight: '500',
   },
   secondaryStatsContainer: {
