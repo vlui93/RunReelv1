@@ -30,6 +30,7 @@ import {
   Play,
   Settings,
   Activity,
+  Gauge,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
