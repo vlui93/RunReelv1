@@ -238,6 +238,19 @@ export default function ActivityDetailsScreen() {
       });
     } catch (error) {
       console.error('Error sharing:', error);
+      
+      // Handle Web Share API permission errors specifically
+      if (Platform.OS === 'web' && error instanceof Error) {
+        if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+          Alert.alert(
+            'Sharing Not Available',
+            'Sharing is not available in this browser environment. This may be due to security restrictions or the need for HTTPS. You can manually copy the activity details to share.'
+          );
+          return;
+        }
+      }
+      
+      Alert.alert('Error', 'Unable to share at this time. Please try again later.');
     }
   };
 
