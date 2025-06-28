@@ -182,18 +182,26 @@ export default function ActivityDetailsScreen() {
       if (result?.videoUrl) {
         // Update the activity with the video URL
         const table = activityType === 'manual' ? 'manual_activities' : 'imported_workouts';
-        const updateField = activityType === 'manual' ? 'video_url' : 'metadata';
-        const updateValue = activityType === 'manual' 
-          ? result.videoUrl 
-          : { ...activity.metadata, video_url: result.videoUrl };
-
-        await supabase
-          .from(table)
-          .update({
-            [updateField]: updateValue,
-            ...(activityType === 'manual' && { video_generated: true }),
-          })
-          .eq('id', activity.id);
+        
+        if (activityType === 'manual') {
+          await supabase
+            .from('manual_activities')
+            .update({
+              video_url: result.videoUrl,
+              video_generated: true,
+            })
+            .eq('id', activity.id);
+        } else {
+          await supabase
+            .from('imported_workouts')
+            .update({
+              metadata: { 
+                ...activity.metadata, 
+                video_url: result.videoUrl 
+              }
+            })
+            .eq('id', activity.id);
+        }
 
         setActivity(prev => prev ? {
           ...prev,

@@ -75,7 +75,7 @@ export function useEnhancedVideoGeneration() {
       // Create video generation record with proper user_id
       const videoGenRecord = {
         user_id: authUser.id, // Use authenticated user ID
-        run_id: null,
+        run_id: null, // For achievement videos, we don't have a run_id
         achievement_id: achievement.id,
         template_id: templateId,
         status: 'pending' as const,
@@ -207,7 +207,7 @@ export function useEnhancedVideoGeneration() {
             })
             .eq('user_id', authUser.id)
             .eq('achievement_id', achievement.id)
-            .eq('status', 'pending');
+            .in('status', ['pending', 'processing']);
         }
       } catch (updateError) {
         console.error('Failed to update video generation record with error:', updateError);
