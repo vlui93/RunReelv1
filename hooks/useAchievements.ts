@@ -146,6 +146,166 @@ export function useAchievements() {
     if (!user) return;
 
     try {
+      // Get both imported workouts and manual activities from the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const [workoutsResult, activitiesResult] = await Promise.all([
+        supabase
+          .from('imported_workouts')
+          .select('start_time, workout_type')
+          .eq('user_id', user.id)
+          .gte('start_time', thirtyDaysAgo.toISOString())
+          .order('start_time', { ascending: true }),
+        supabase
+          .from('manual_activities')
+          .select('activity_date, start_time, activity_type')
+          .eq('user_id', user.id)
+          .gte('activity_date', thirtyDaysAgo.toISOString().split('T')[0])
+          .order('activity_date', { ascending: true })
+      ]);
+
+      if (workoutsResult.error) throw workoutsResult.error;
+      if (activitiesResult.error) throw activitiesResult.error;
+
+      // Combine and normalize the data
+      const allActivities = [
+        ...(workoutsResult.data || []).map(w => ({
+          date: new Date(w.start_time).toDateString(),
+          type: w.workout_type
+        })),
+        ...(activitiesResult.data || []).map(a => ({
+          date: new Date(a.activity_date).toDateString(),
+          type: a.activity_type
+        }))
+      ];
+
+      // Group activities by date
+      const activitiesByDate = new Map<string, any[]>();
+      allActivities.forEach(activity => {
+        if (!activitiesByDate.has(activity.date)) {
+          activitiesByDate.set(activity.date, []);
+        }
+        activitiesByDate.get(activity.date)!.push(activity);
+      });
+
+      // Calculate current streak
+      let currentStreak = 0;
+      const today = new Date();
+      
+      for (let i = 0; i < 30; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - i);
+        const dateString = checkDate.toDateString();
+        
+        if (activitiesByDate.has(dateString)) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+
+      // Create streak achievement if significant (7, 14, 21, 30 days)
+      const streakMilestones = [7, 14, 21, 30];
+      for (const milestone of streakMilestones) {
+        if (currentStreak >= milestone) {
+          const existingStreak = achievements.find(a => 
+            a.achievement_type === 'streak' && 
+            a.category === 'consistency' && 
+            a.value === milestone
+          );
+
+          if (!existingStreak) {
+            const { error: insertError } = await supabase
+              .from('achievements')
+              .insert({
+                user_id: user.id,
+                achievement_type: 'streak',
+                category: 'consistency',
+                value: milestone,
+                previous_value: milestone > 7 ? milestone - 7 : 0,
+                description: `${milestone} day activity streak! 🔥`,
+                is_processed: false
+              });
+
+            if (!insertError) {
+              await fetchAchievements();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking consistency streaks:', error);
+    }
+  };
+
+  // Trigger achievement detection for existing data
+  const triggerAchievementDetection = async () => {
+    if (!user) return;
+
+    try {
+      // Get recent imported workouts
+      const { data: recentWorkouts, error: workoutsError } = await supabase
+        .from('imported_workouts')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (workoutsError) throw workoutsError;
+
+      // Process each workout for achievements
+      for (const workout of recentWorkouts || []) {
+        await supabase.rpc('detect_achievements', {
+          p_user_id: user.id,
+          p_workout_id: workout.id
+        });
+      }
+
+      // Get recent manual activities
+      const { data: recentActivities, error: activitiesError } = await supabase
+        .from('manual_activities')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (activitiesError) throw activitiesError;
+
+      // Process each manual activity for achievements
+      for (const activity of recentActivities || []) {
+        await supabase.rpc('detect_manual_activity_achievements', {
+          p_user_id: user.id,
+          p_activity_id: activity.id
+        });
+      }
+
+      // Check for consistency streaks
+      await checkConsistencyStreaks();
+      
+      // Refresh achievements
+      await fetchAchievements();
+    } catch (error) {
+      console.error('Error triggering achievement detection:', error);
+    }
+  };
+
+  // Auto-trigger achievement detection when component mounts
+  useEffect(() => {
+    if (user && achievements.length === 0) {
+      // Small delay to ensure other data is loaded first
+      const timer = setTimeout(() => {
+        triggerAchievementDetection();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
+  const checkConsistencyStreaksOld = async () => {
+    if (!user) return;
+
+    try {
       // Get workouts from the last 30 days
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -275,6 +435,7 @@ export function useAchievements() {
     getAchievementsByCategory,
     getAchievementsForWorkout,
     checkConsistencyStreaks,
+    triggerAchievementDetection,
     formatAchievementValue,
     getAchievementIcon,
     getAchievementColor

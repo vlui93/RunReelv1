@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
+import { useAchievements } from './useAchievements';
 
 export interface ManualActivity {
   id: string;
@@ -41,6 +42,7 @@ export interface ActivityFormData {
 
 export function useManualActivities() {
   const { user } = useAuth();
+  const { checkConsistencyStreaks } = useAchievements();
   const [activities, setActivities] = useState<ManualActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -116,6 +118,9 @@ export function useManualActivities() {
       console.log('Activity created successfully:', data);
       // Refresh activities list
       await fetchActivities();
+      
+      // Check for consistency streaks after creating activity
+      await checkConsistencyStreaks();
       
       return data;
     } catch (error) {

@@ -369,6 +369,9 @@ export function useHealthData() {
         metadata: { source: 'apple_health', raw_data: workout }
       });
     }
+    
+    // Trigger achievement detection after importing workouts
+    await detectAchievementsForUser();
   };
 
   const syncGoogleFitData = async (source: HealthDataSource) => {
@@ -400,6 +403,9 @@ export function useHealthData() {
         metadata: { source: 'google_fit', raw_data: session }
       });
     }
+    
+    // Trigger achievement detection after importing workouts
+    await detectAchievementsForUser();
   };
 
   const importWorkout = async (sourceId: string, workoutData: Omit<ImportedWorkout, 'id'>) => {
@@ -423,6 +429,32 @@ export function useHealthData() {
     } catch (error) {
       console.error('Error importing workout:', error);
       return null;
+    }
+  };
+
+  const detectAchievementsForUser = async () => {
+    if (!user) return;
+
+    try {
+      // Call the achievement detection function for all recent workouts
+      const { data: recentWorkouts, error } = await supabase
+        .from('imported_workouts')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      // Process each workout for achievements
+      for (const workout of recentWorkouts || []) {
+        await supabase.rpc('detect_achievements', {
+          p_user_id: user.id,
+          p_workout_id: workout.id
+        });
+      }
+    } catch (error) {
+      console.error('Error detecting achievements:', error);
     }
   };
 
