@@ -81,7 +81,8 @@ export type Database = {
       video_generations: {
         Row: {
           id: string
-          run_id: string
+          run_id: string | null
+          achievement_id: string | null
           tavus_job_id: string | null
           status: string
           video_url: string | null
@@ -89,7 +90,8 @@ export type Database = {
         }
         Insert: {
           id?: string
-          run_id: string
+          run_id?: string | null
+          achievement_id?: string | null
           tavus_job_id?: string | null
           status?: string
           video_url?: string | null
@@ -97,7 +99,8 @@ export type Database = {
         }
         Update: {
           id?: string
-          run_id?: string
+          run_id?: string | null
+          achievement_id?: string | null
           tavus_job_id?: string | null
           status?: string
           video_url?: string | null

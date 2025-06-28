@@ -68,7 +68,7 @@ export function useEnhancedVideoGeneration() {
       const { data: videoGeneration, error: insertError } = await supabase
         .from('video_generations')
         .insert({
-          run_id: null, // For achievement videos, we don't have a run_id
+          run_id: null,
           achievement_id: achievement.id,
           template_id: templateId,
           status: 'pending',
@@ -186,8 +186,7 @@ export function useEnhancedVideoGeneration() {
         .update({
           status: 'failed',
         })
-        .eq('achievement_id', achievement.id)
-        .eq('status', 'processing');
+        .eq('id', videoGeneration?.id);
 
       throw error;
     }

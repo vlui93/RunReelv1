@@ -151,7 +151,7 @@ export default function ActivityDetailsScreen() {
 
       // Create a mock achievement for video generation
       const mockAchievement = {
-        id: `activity_${activity.id}`,
+        id: activity.id,
         achievement_type: 'milestone' as const,
         category: 'distance' as const,
         value: (activity.distance || activity.distance_km || 0) * 1000,
