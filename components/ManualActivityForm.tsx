@@ -26,6 +26,7 @@ import {
   X
 } from 'lucide-react-native';
 import { ActivityFormData } from '@/hooks/useManualActivities';
+import { useSettings } from '@/hooks/useSettings';
 
 interface ManualActivityFormProps {
   onSubmit: (data: ActivityFormData) => Promise<void>;
@@ -90,10 +91,12 @@ const validationSchema = yup.object().shape({
 });
 
 export default function ManualActivityForm({ onSubmit, onCancel, loading }: ManualActivityFormProps) {
+  const { settings, formatDistance, formatPace } = useSettings();
   const [selectedAchievements, setSelectedAchievements] = useState<string[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [useMetricUnits, setUseMetricUnits] = useState(settings.distanceUnit === 'km');
 
   const {
     control,
@@ -124,12 +127,29 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
 
   const isDistanceBasedActivity = ['Running', 'Walking', 'Cycling', 'Swimming'].includes(watchedActivityType);
 
+  const convertDistanceForStorage = (distance: number): number => {
+    // Always store in km in the database
+    if (useMetricUnits) {
+      return distance; // Already in km
+    } else {
+      return distance * 1.609344; // Convert miles to km
+    }
+  };
+
+  const getDistanceLabel = (): string => {
+    return useMetricUnits ? 'Distance (km)' : 'Distance (miles)';
+  };
+
   const handleFormSubmit = async (data: ActivityFormData) => {
     try {
-      await onSubmit({
+      // Convert distance to km for storage if needed
+      const processedData = {
         ...data,
+        distance_km: data.distance_km ? convertDistanceForStorage(data.distance_km) : undefined,
         achievement_flags: selectedAchievements,
-      });
+      };
+      
+      await onSubmit(processedData);
     } catch (error) {
       Alert.alert('Error', 'Failed to save activity. Please try again.');
     }
@@ -369,16 +389,36 @@ export default function ManualActivityForm({ onSubmit, onCancel, loading }: Manu
             control={control}
             name="distance_km"
             render={({ field: { onChange, onBlur, value } }) => (
-              <View style={styles.inputContainer}>
+              <View style={styles.distanceInputContainer}>
                 <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, styles.inputWithIcon]}
-                  placeholder="Distance (km)"
-                  value={value?.toString() || ''}
-                  onChangeText={(text) => onChange(text ? parseFloat(text) : undefined)}
-                  onBlur={onBlur}
-                  keyboardType="numeric"
-                />
+                <View style={styles.distanceInputWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.inputWithIcon, styles.distanceInput]}
+                    placeholder={getDistanceLabel()}
+                    value={value?.toString() || ''}
+                    onChangeText={(text) => onChange(text ? parseFloat(text) : undefined)}
+                    onBlur={onBlur}
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity
+                    style={styles.unitToggle}
+                    onPress={() => setUseMetricUnits(!useMetricUnits)}
+                  >
+                    <Text style={[
+                      styles.unitToggleText,
+                      useMetricUnits && styles.unitToggleTextActive
+                    ]}>
+                      KM
+                    </Text>
+                    <Text style={styles.unitSeparator}>|</Text>
+                    <Text style={[
+                      styles.unitToggleText,
+                      !useMetricUnits && styles.unitToggleTextActive
+                    ]}>
+                      MI
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           />
@@ -655,6 +695,42 @@ const styles = StyleSheet.create({
   },
   inputWithIcon: {
     paddingLeft: 48,
+  },
+  distanceInputContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  distanceInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  distanceInput: {
+    flex: 1,
+    marginRight: 8,
+  },
+  unitToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    minWidth: 60,
+  },
+  unitToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    textAlign: 'center',
+    flex: 1,
+  },
+  unitToggleTextActive: {
+    color: '#3B82F6',
+  },
+  unitSeparator: {
+    fontSize: 12,
+    color: '#D1D5DB',
+    marginHorizontal: 2,
   },
   inputContainer: {
     position: 'relative',

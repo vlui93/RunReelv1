@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useEnhancedVideoGeneration } from '@/hooks/useEnhancedVideoGeneration';
 import { useApiUsage } from '@/hooks/useApiUsage';
+import { useSettings } from '@/hooks/useSettings';
 import {
   ArrowLeft,
   Calendar,
@@ -82,6 +83,7 @@ export default function ActivityDetailsScreen() {
   } = useEnhancedVideoGeneration();
 
   const { limits } = useApiUsage();
+  const { formatDistance, formatPace, formatSpeed, settings } = useSettings();
 
   useEffect(() => {
     if (activityId && activityType && user) {
@@ -255,7 +257,7 @@ export default function ActivityDetailsScreen() {
   };
 
   const formatTime = (seconds: number): string => {
-    if (!seconds || seconds <= 0) return '0m 0s';
+    if (!seconds || seconds <= 0) return '0s';
     
     const totalMinutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -269,19 +271,6 @@ export default function ActivityDetailsScreen() {
     } else {
       return `${remainingSeconds}s`;
     }
-  };
-
-  const formatPace = (pace: number): string => {
-    const minutes = Math.floor(pace);
-    const seconds = Math.floor((pace - minutes) * 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
-  };
-
-  const formatDistance = (distance: number): string => {
-    if (distance < 1) {
-      return `${(distance * 1000).toFixed(0)}m`;
-    }
-    return `${distance.toFixed(2)}km`;
   };
 
   const formatDate = (dateString: string): string => {
@@ -373,7 +362,7 @@ export default function ActivityDetailsScreen() {
       <View style={styles.mainStatsContainer}>
         <View style={styles.primaryStatContainer}>
           <View style={styles.primaryStat}>
-            <Text style={styles.primaryStatValue}>{formatDistance(distance)}</Text>
+            <Text style={styles.primaryStatValue}>{formatDistance(distance, 'km')}</Text>
             <Text style={styles.primaryStatLabel}>Distance</Text>
           </View>
         </View>
@@ -387,13 +376,24 @@ export default function ActivityDetailsScreen() {
 
       {/* Secondary Stats */}
       <View style={styles.secondaryStatsContainer}>
+        {/* Enhanced metrics grid */}
         {pace > 0 && (
           <View style={styles.statCard}>
             <Target size={24} color="#3B82F6" />
-            <Text style={styles.statValue}>{formatPace(pace)}</Text>
+            <Text style={styles.statValue}>{formatPace(pace, 'min/km')}</Text>
             <Text style={styles.statLabel}>Avg. Pace</Text>
           </View>
         )}
+        
+        {/* Speed calculation */}
+        {pace > 0 && (
+          <View style={styles.statCard}>
+            <Gauge size={24} color="#8B5CF6" />
+            <Text style={styles.statValue}>{formatSpeed(60 / pace)}</Text>
+            <Text style={styles.statLabel}>Avg. Speed</Text>
+          </View>
+        )}
+        
         {calories > 0 && (
           <View style={styles.statCard}>
             <Zap size={24} color="#F59E0B" />
@@ -401,6 +401,7 @@ export default function ActivityDetailsScreen() {
             <Text style={styles.statLabel}>Calories</Text>
           </View>
         )}
+        
         {heartRate > 0 && (
           <View style={styles.statCard}>
             <Heart size={24} color="#EF4444" />
@@ -408,6 +409,15 @@ export default function ActivityDetailsScreen() {
             <Text style={styles.statLabel}>Avg. HR</Text>
           </View>
         )}
+        
+        {activity.heart_rate_max && (
+          <View style={styles.statCard}>
+            <Heart size={24} color="#DC2626" />
+            <Text style={styles.statValue}>{activity.heart_rate_max} bpm</Text>
+            <Text style={styles.statLabel}>Max HR</Text>
+          </View>
+        )}
+        
         {activity.elevation_gain && activity.elevation_gain > 0 && (
           <View style={styles.statCard}>
             <TrendingUp size={24} color="#10B981" />
@@ -415,7 +425,58 @@ export default function ActivityDetailsScreen() {
             <Text style={styles.statLabel}>Elevation</Text>
           </View>
         )}
+        
+        {/* Cadence if available from imported data */}
+        {activity.metadata?.cadence && (
+          <View style={styles.statCard}>
+            <Activity size={24} color="#6366F1" />
+            <Text style={styles.statValue}>{activity.metadata.cadence}</Text>
+            <Text style={styles.statLabel}>Cadence</Text>
+          </View>
+        )}
+        
+        {/* Stride length if available */}
+        {activity.metadata?.stride_length && (
+          <View style={styles.statCard}>
+            <Ruler size={24} color="#059669" />
+            <Text style={styles.statValue}>{activity.metadata.stride_length}m</Text>
+            <Text style={styles.statLabel}>Stride</Text>
+          </View>
+        )}
       </View>
+
+      {/* Split Times Section */}
+      {activity.metadata?.splits && activity.metadata.splits.length > 0 && (
+        <View style={styles.splitsSection}>
+          <Text style={styles.sectionTitle}>Split Times</Text>
+          <View style={styles.splitsContainer}>
+            {activity.metadata.splits.map((split: any, index: number) => (
+              <View key={index} style={styles.splitCard}>
+                <Text style={styles.splitDistance}>
+                  {settings.distanceUnit === 'km' ? `${index + 1}km` : `${(index + 1) * 0.621371}mi`}
+                </Text>
+                <Text style={styles.splitTime}>{formatPace(split.pace, 'min/km')}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Heart Rate Zones */}
+      {activity.metadata?.heart_rate_zones && (
+        <View style={styles.heartRateSection}>
+          <Text style={styles.sectionTitle}>Heart Rate Zones</Text>
+          <View style={styles.heartRateZones}>
+            {Object.entries(activity.metadata.heart_rate_zones).map(([zone, time]: [string, any]) => (
+              <View key={zone} style={styles.heartRateZone}>
+                <View style={[styles.zoneIndicator, { backgroundColor: getZoneColor(zone) }]} />
+                <Text style={styles.zoneName}>{zone}</Text>
+                <Text style={styles.zoneTime}>{formatTime(time)}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* Additional Details */}
       <View style={styles.detailsSection}>
@@ -727,19 +788,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   secondaryStatsContainer: {
+    marginHorizontal: 24,
+    marginBottom: 32,
+  },
+  statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginHorizontal: 24,
-    marginBottom: 32,
-    gap: 12,
+    gap: 8,
   },
   statCard: {
     backgroundColor: '#FFFFFF',
-    width: '48%',
+    width: '48.5%',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    marginBottom: 8,
     elevation: 2,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
@@ -756,6 +820,76 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 4,
+  },
+  splitsSection: {
+    marginHorizontal: 24,
+    marginBottom: 32,
+  },
+  splitsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  splitCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 80,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  splitDistance: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  splitTime: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginTop: 2,
+  },
+  heartRateSection: {
+    marginHorizontal: 24,
+    marginBottom: 32,
+  },
+  heartRateZones: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  heartRateZone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F9FAFB',
+  },
+  zoneIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  zoneName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  zoneTime: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   detailsSection: {
     marginHorizontal: 24,
@@ -1032,3 +1166,26 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+// Helper function for heart rate zone colors
+const getZoneColor = (zone: string): string => {
+  switch (zone.toLowerCase()) {
+    case 'zone 1':
+    case 'recovery':
+      return '#10B981';
+    case 'zone 2':
+    case 'aerobic':
+      return '#3B82F6';
+    case 'zone 3':
+    case 'tempo':
+      return '#F59E0B';
+    case 'zone 4':
+    case 'threshold':
+      return '#EF4444';
+    case 'zone 5':
+    case 'anaerobic':
+      return '#DC2626';
+    default:
+      return '#6B7280';
+  }
+};
