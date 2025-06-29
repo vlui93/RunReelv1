@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
-import { useAchievements } from './useAchievements';
 
 export interface ManualActivity {
   id: string;
@@ -42,7 +41,6 @@ export interface ActivityFormData {
 
 export function useManualActivities() {
   const { user } = useAuth();
-  const { checkConsistencyStreaks } = useAchievements();
   const [activities, setActivities] = useState<ManualActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -50,6 +48,9 @@ export function useManualActivities() {
   useEffect(() => {
     if (user) {
       fetchActivities();
+    } else {
+      setActivities([]);
+      setLoading(false);
     }
   }, [user]);
 
@@ -106,7 +107,6 @@ export function useManualActivities() {
         weather_conditions: formData.weather_conditions,
       };
 
-      console.log('Creating activity with data:', activityData);
       const { data, error } = await supabase
         .from('manual_activities')
         .insert(activityData)
@@ -115,12 +115,8 @@ export function useManualActivities() {
 
       if (error) throw error;
 
-      console.log('Activity created successfully:', data);
       // Refresh activities list
       await fetchActivities();
-      
-      // Check for consistency streaks after creating activity
-      await checkConsistencyStreaks();
       
       return data;
     } catch (error) {
@@ -128,49 +124,6 @@ export function useManualActivities() {
       throw error;
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const updateActivity = async (id: string, updates: Partial<ActivityFormData>): Promise<void> => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('manual_activities')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Refresh activities list
-      await fetchActivities();
-    } catch (error) {
-      console.error('Error updating activity:', error);
-      throw error;
-    }
-  };
-
-  const deleteActivity = async (id: string): Promise<void> => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('manual_activities')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Refresh activities list
-      await fetchActivities();
-    } catch (error) {
-      console.error('Error deleting activity:', error);
-      throw error;
     }
   };
 
@@ -196,31 +149,12 @@ export function useManualActivities() {
     };
   };
 
-  const getRecentActivities = (limit: number = 10) => {
-    return activities.slice(0, limit);
-  };
-
-  const getActivitiesByType = (type: string) => {
-    return activities.filter(activity => activity.activity_type === type);
-  };
-
-  const getActivitiesWithAchievements = () => {
-    return activities.filter(activity => 
-      activity.achievement_flags && activity.achievement_flags.length > 0
-    );
-  };
-
   return {
     activities,
     loading,
     submitting,
     createActivity,
-    updateActivity,
-    deleteActivity,
     fetchActivities,
     getActivityStats,
-    getRecentActivities,
-    getActivitiesByType,
-    getActivitiesWithAchievements,
   };
 }
