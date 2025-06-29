@@ -24,10 +24,12 @@ interface ActivityData {
 
 interface TavusResponse {
   video_id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'error';
   video_url?: string;
   preview_url?: string;
   thumbnail_url?: string;
+  hosted_url?: string;
+  download_url?: string;
 }
 
 interface VideoGenerationResult {
@@ -38,19 +40,23 @@ interface VideoGenerationResult {
   error?: string;
   attempts_made?: number;
   total_time?: number;
+  queue_time?: number | string;
+  suggestion?: string;
 }
 
 class EnhancedTavusService {
   private apiKey: string;
   private baseUrl = 'https://tavusapi.com/v2';
   
-  // Enhanced polling configuration based on Tavus API requirements
+  // Enhanced polling configuration for peak usage handling
   private readonly POLLING_CONFIG = {
-    maxAttempts: 40,        // Increased from default 30 attempts
-    initialInterval: 3000,  // Start with 3 seconds
-    maxInterval: 15000,     // Cap at 15 seconds
-    backoffMultiplier: 1.2, // Progressive increase
-    totalTimeout: 300000    // 5 minutes total timeout (300 seconds)
+    maxAttempts: 60,           // Increased from 40 attempts
+    initialInterval: 5000,     // Start with 5 seconds
+    maxInterval: 20000,        // Cap at 20 seconds
+    backoffMultiplier: 1.3,    // Progressive increase
+    totalTimeout: 600000,      // Extended to 10 minutes (was 300 seconds)
+    queueTimeout: 180000,      // Separate 3-minute queue timeout
+    peakUsageThreshold: 180    // 3 minutes indicates peak usage
   };
 
   constructor() {
@@ -146,27 +152,28 @@ class EnhancedTavusService {
 
       console.log('🔄 Starting enhanced polling for video completion...');
 
-      // Step 2: Enhanced polling with progressive backoff
+      // Step 2: Enhanced polling with progressive backoff and peak usage handling
       const pollResult = await this.pollVideoCompletionEnhanced(initResult.video_id);
       
-      if (pollResult.success && pollResult.video_url) {
+      if (pollResult.success && pollResult.videoUrl) {
         // Update records with final video URL
         await supabase
           .from('video_generations')
           .update({
             status: 'completed',
-            video_url: pollResult.video_url,
+            video_url: pollResult.videoUrl,
           })
           .eq('id', videoGeneration.id);
 
         console.log('✅ Video generation completed successfully!');
         return {
           success: true,
-          videoUrl: pollResult.video_url,
-          thumbnailUrl: pollResult.thumbnail_url,
+          videoUrl: pollResult.videoUrl,
+          thumbnailUrl: pollResult.thumbnailUrl,
           videoId: videoGeneration.id,
           attempts_made: pollResult.attempts_made,
-          total_time: pollResult.total_time
+          total_time: pollResult.total_time,
+          queue_time: pollResult.queue_time
         };
       } else {
         throw new Error(pollResult.error || 'Video generation failed - no video URL returned');
@@ -257,19 +264,22 @@ class EnhancedTavusService {
     let attempts = 0;
     let currentInterval = this.POLLING_CONFIG.initialInterval;
     const startTime = Date.now();
+    let queuePhase = true;
+    let queueStartTime = startTime;
 
     while (attempts < this.POLLING_CONFIG.maxAttempts) {
       const elapsedTime = Date.now() - startTime;
       
-      // Check total timeout (5 minutes)
+      // Check total timeout (10 minutes)
       if (elapsedTime > this.POLLING_CONFIG.totalTimeout) {
         console.error(`⏰ Video generation timeout after ${Math.round(elapsedTime / 1000)} seconds`);
         return {
           success: false,
-          error: `Video generation timeout after ${Math.round(elapsedTime / 1000)} seconds. This sometimes happens during peak usage. Please try again or check your Tavus dashboard.`,
-          video_id: videoId,
+          error: `Video generation timeout after ${Math.round(elapsedTime / 1000)} seconds. This can happen during peak usage periods.`,
+          videoId: videoId,
           attempts_made: attempts,
-          total_time: Math.round(elapsedTime / 1000)
+          total_time: Math.round(elapsedTime / 1000),
+          suggestion: "Check your Tavus dashboard or try again during off-peak hours (early morning/late evening)"
         };
       }
 
@@ -282,17 +292,39 @@ class EnhancedTavusService {
         
         console.log(`📈 Video status: ${statusResult.status}`);
 
+        // Handle queue status specifically
+        if (statusResult.status === 'queued' || statusResult.status === 'pending') {
+          if (queuePhase) {
+            const queueTime = Date.now() - queueStartTime;
+            console.log(`Video still queued after ${Math.round(queueTime / 1000)}s - waiting for processing to begin`);
+            
+            // Special handling for extended queue times
+            if (queueTime > this.POLLING_CONFIG.queueTimeout) {
+              console.warn('Video has been queued longer than expected - likely peak usage');
+            }
+          }
+        } else if (statusResult.status === 'processing') {
+          if (queuePhase) {
+            queuePhase = false; // Processing has begun
+            console.log(`Video processing started - status: ${statusResult.status}`);
+          }
+        }
+
         // Handle completion states
-        if (statusResult.status === 'completed' && statusResult.video_url) {
-          console.log(`🎯 Video generation completed successfully!`);
-          return {
-            success: true,
-            video_id: videoId,
-            video_url: statusResult.video_url,
-            thumbnail_url: statusResult.thumbnail_url,
-            attempts_made: attempts,
-            total_time: Math.round(elapsedTime / 1000)
-          };
+        if (statusResult.status === 'completed') {
+          const videoUrl = statusResult.hosted_url || statusResult.download_url || statusResult.video_url;
+          if (videoUrl) {
+            console.log(`🎯 Video generation completed successfully!`);
+            return {
+              success: true,
+              videoId: videoId,
+              videoUrl: videoUrl,
+              thumbnailUrl: statusResult.thumbnail_url,
+              attempts_made: attempts,
+              total_time: Math.round(elapsedTime / 1000),
+              queue_time: queuePhase ? elapsedTime : Math.round((Date.now() - queueStartTime) / 1000)
+            };
+          }
         }
 
         if (statusResult.status === 'failed' || statusResult.status === 'error') {
@@ -300,16 +332,21 @@ class EnhancedTavusService {
           return {
             success: false,
             error: `Video generation failed with status: ${statusResult.status}`,
-            video_id: videoId,
+            videoId: videoId,
             attempts_made: attempts,
             total_time: Math.round(elapsedTime / 1000)
           };
         }
 
+        // Adaptive polling based on queue vs processing phase
+        const pollInterval = queuePhase 
+          ? Math.min(currentInterval * 1.5, 30000)  // Longer intervals during queue phase
+          : currentInterval;                        // Normal intervals during processing
+
         // Progressive backoff before next attempt
         if (attempts < this.POLLING_CONFIG.maxAttempts) {
-          console.log(`⏳ Waiting ${Math.round(currentInterval / 1000)}s before next attempt...`);
-          await this.sleep(currentInterval);
+          console.log(`⏳ Waiting ${Math.round(pollInterval / 1000)}s before next attempt...`);
+          await this.sleep(pollInterval);
           currentInterval = Math.min(
             currentInterval * this.POLLING_CONFIG.backoffMultiplier,
             this.POLLING_CONFIG.maxInterval
@@ -322,7 +359,7 @@ class EnhancedTavusService {
           return {
             success: false,
             error: `Polling failed after ${attempts} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            video_id: videoId,
+            videoId: videoId,
             attempts_made: attempts
           };
         }
@@ -334,10 +371,10 @@ class EnhancedTavusService {
     console.error(`❌ Maximum polling attempts exceeded (${this.POLLING_CONFIG.maxAttempts})`);
     return {
       success: false,
-      error: `Video generation timeout - exceeded maximum polling attempts (${this.POLLING_CONFIG.maxAttempts}). Video may still be processing. Check your Tavus dashboard or try again later.`,
-      video_id: videoId,
+      error: `Video generation timeout - exceeded maximum polling attempts (${this.POLLING_CONFIG.maxAttempts}). Video may still be processing.`,
+      videoId: videoId,
       attempts_made: attempts,
-      suggestion: "Video may still be processing. Check Tavus dashboard manually or try again in a few minutes."
+      suggestion: "Video may still be processing. Check your Tavus dashboard manually or try again in a few minutes."
     };
   }
 
@@ -365,6 +402,8 @@ class EnhancedTavusService {
         status: data.status,
         video_url: data.download_url,
         preview_url: data.hosted_url,
+        hosted_url: data.hosted_url,
+        download_url: data.download_url,
         thumbnail_url: data.thumbnail_url
       };
     } catch (error) {
@@ -405,6 +444,8 @@ class EnhancedTavusService {
 
     throw new Error('Video generation timeout - exceeded maximum polling attempts');
   }
+
+  generateAchievementVideo = this.generateActivityVideo;
 
   // Check if API key is configured
   isConfigured(): boolean {
