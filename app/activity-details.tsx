@@ -81,7 +81,7 @@ export default function ActivityDetailsScreen() {
     currentStep,
     getProgressPercentage,
     resetState,
-    state,
+    isPeakUsage,
   } = useEnhancedVideoGeneration();
 
   const { limits } = useApiUsage();
@@ -565,8 +565,8 @@ export default function ActivityDetailsScreen() {
             </View>
             <Text style={styles.progressText}>
               {currentStep === 'initializing' && 'Initializing...'}
-              {currentStep === 'processing' && !state.isPeakUsage && 'Processing with AI...'}
-              {currentStep === 'processing' && state.isPeakUsage && 'Waiting in queue - peak usage detected...'}
+              {currentStep === 'processing' && !isPeakUsage && 'Processing with AI...'}
+              {currentStep === 'processing' && isPeakUsage && 'Waiting in queue - peak usage detected...'}
               {currentStep === 'finalizing' && 'Finalizing video...'}
               {currentStep === 'completed' && 'Completed!'}
               {currentStep === 'failed' && 'Failed'}
@@ -628,9 +628,9 @@ export default function ActivityDetailsScreen() {
               
               <View style={styles.estimateContainer}>
                 <Text style={styles.estimateText}>
-                  Expected: {state.isPeakUsage ? '5-10 minutes' : '1-3 minutes'}
+                  Expected: {isPeakUsage ? '5-10 minutes' : '1-3 minutes'}
                 </Text>
-                {state.isPeakUsage && (
+                {isPeakUsage && (
                   <Text style={styles.peakUsageHint}>
                     💡 Try during off-peak hours (early morning/late evening) for faster processing
                   </Text>
