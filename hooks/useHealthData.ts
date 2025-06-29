@@ -339,8 +339,8 @@ export function useHealthData() {
       {
         uuid: 'apple-workout-1',
         activityType: 'Running',
-        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        endDate: new Date(Date.now() - 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
+        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z',
+        endDate: new Date(Date.now() - 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString().split('.')[0] + 'Z',
         duration: 1800, // 30 minutes
         distance: 5000, // 5km
         calories: 300,
@@ -348,8 +348,8 @@ export function useHealthData() {
       {
         uuid: 'apple-workout-2',
         activityType: 'Walking',
-        startDate: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-        endDate: new Date(Date.now() - 48 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
+        startDate: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z',
+        endDate: new Date(Date.now() - 48 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString().split('.')[0] + 'Z',
         duration: 2700, // 45 minutes
         distance: 3000, // 3km
         calories: 150,
@@ -394,8 +394,8 @@ export function useHealthData() {
       await importWorkout(source.id, {
         external_id: session.id,
         workout_type: 'running',
-        start_time: new Date(session.startTimeMillis).toISOString(),
-        end_time: new Date(session.endTimeMillis).toISOString(),
+        start_time: new Date(session.startTimeMillis).toISOString().split('.')[0] + 'Z',
+        end_time: new Date(session.endTimeMillis).toISOString().split('.')[0] + 'Z',
         distance: 4000, // Sample distance
         duration: duration,
         calories: 250,
