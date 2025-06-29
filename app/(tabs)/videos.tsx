@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useVideoLibrary } from '@/hooks/useVideoLibrary';
 import { Video, Play, MoveVertical as MoreVertical, CreditCard as Edit3, Trash2, Share2, Download, Calendar, Clock, Target, Search, Filter, Grid2x2 as Grid, List, X, Check } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import VideoThumbnailGenerator from '@/components/VideoThumbnailGenerator';
 
 interface VideoItem {
   id: string;
@@ -340,7 +341,17 @@ export default function VideosTab() {
               >
                 {/* Thumbnail */}
                 <View style={[styles.thumbnailContainer, viewMode === 'list' && styles.thumbnailContainerList]}>
-                  {video.thumbnail_url ? (
+                  {video.thumbnail_url && video.thumbnail_url.startsWith('thumbnail://') ? (
+                    <VideoThumbnailGenerator
+                      activityType={video.activity_type || 'Other'}
+                      activityName={video.title}
+                      distance={video.duration ? undefined : undefined} // We don't have distance in video data
+                      duration={video.duration || 0}
+                      calories={undefined} // We don't have calories in video data
+                      date={video.created_at}
+                      style={styles.thumbnail}
+                    />
+                  ) : video.thumbnail_url ? (
                     <Image source={{ uri: video.thumbnail_url }} style={styles.thumbnail} />
                   ) : (
                     <LinearGradient
@@ -352,12 +363,14 @@ export default function VideosTab() {
                   )}
                   
                   {/* Status Indicator */}
-                  <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(video.status) }]}>
-                    {getStatusIcon(video.status)}
-                  </View>
+                  {!video.thumbnail_url?.startsWith('thumbnail://') && (
+                    <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(video.status) }]}>
+                      {getStatusIcon(video.status)}
+                    </View>
+                  )}
 
                   {/* Play Button Overlay */}
-                  {video.status === 'completed' && (
+                  {video.status === 'completed' && !video.thumbnail_url?.startsWith('thumbnail://') && (
                     <View style={styles.playOverlay}>
                       <View style={styles.playButton}>
                         <Play size={viewMode === 'list' ? 12 : 16} color="#FFFFFF" />
@@ -366,7 +379,7 @@ export default function VideosTab() {
                   )}
 
                   {/* Duration */}
-                  {video.duration && (
+                  {video.duration && !video.thumbnail_url?.startsWith('thumbnail://') && (
                     <View style={styles.durationBadge}>
                       <Text style={styles.durationText}>{formatDuration(video.duration)}</Text>
                     </View>

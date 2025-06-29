@@ -34,6 +34,7 @@ export function useVideoLibrary() {
   const [videos, setVideos] = useState<VideoLibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (user) {
@@ -80,7 +81,7 @@ export function useVideoLibrary() {
       // Transform the data to match our VideoLibraryItem interface
       const transformedVideos: VideoLibraryItem[] = (data || []).map((item: any) => ({
         id: item.id,
-        title: item.manual_activities?.activity_name || 'Achievement Video',
+        title: item.manual_activities?.activity_name || `${item.manual_activities?.activity_type || 'Achievement'} Video`,
         video_url: item.video_url || '',
         status: item.status,
         created_at: item.created_at,
@@ -92,9 +93,8 @@ export function useVideoLibrary() {
         run_id: item.run_id,
         activity_type: item.manual_activities?.activity_type,
         duration: item.manual_activities?.duration_seconds,
-        // Note: Tavus doesn't provide thumbnail URLs in the current API
-        // You might need to generate these or use video preview frames
-        thumbnail_url: undefined,
+        // Generate custom thumbnail identifier for our component
+        thumbnail_url: item.status === 'completed' ? generateThumbnailUrl(item) : undefined,
       }));
 
       setVideos(transformedVideos);
@@ -104,6 +104,17 @@ export function useVideoLibrary() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const generateThumbnailUrl = (item: any): string => {
+    // Create a custom URL scheme for our thumbnail generator
+    const activityType = item.manual_activities?.activity_type || 'Other';
+    const activityName = item.manual_activities?.activity_name || 'Achievement Video';
+    const duration = item.manual_activities?.duration_seconds || 0;
+    const date = item.created_at;
+    
+    // Return a custom URL that our component can parse
+    return `thumbnail://${item.id}?type=${encodeURIComponent(activityType)}&name=${encodeURIComponent(activityName)}&duration=${duration}&date=${encodeURIComponent(date)}`;
   };
 
   const updateVideoTitle = async (videoId: string, newTitle: string): Promise<void> => {
