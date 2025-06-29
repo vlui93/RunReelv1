@@ -74,7 +74,7 @@ export default function ActivityDetailsScreen() {
   const [selectedFormat, setSelectedFormat] = useState<'square' | 'vertical' | 'horizontal'>('square');
 
   const {
-    generateAchievementVideo,
+    generateActivityVideo,
     isGenerating,
     progress,
     error,
@@ -141,7 +141,12 @@ export default function ActivityDetailsScreen() {
   };
 
   const handleGenerateVideo = async () => {
-    if (!activity || !limits.canGenerate) {
+    if (!activity) {
+      Alert.alert('Error', 'Activity data not found');
+      return;
+    }
+
+    if (!limits.canGenerate) {
       Alert.alert(
         'Video Generation Limit',
         `You have reached your video generation limit (${limits.maxVideoGenerations} videos). Please upgrade to generate more videos.`
@@ -152,38 +157,32 @@ export default function ActivityDetailsScreen() {
     try {
       resetState();
 
-      // Create a mock achievement for video generation
-      const mockAchievement = {
+      // Prepare activity data for video generation
+      const activityData = {
         id: activity.id,
-        achievement_type: 'milestone' as const,
-        category: 'distance' as const,
-        value: (activity.distance || activity.distance_km || 0) * 1000,
-        previous_value: null,
-        description: `Completed ${activity.activity_name || activity.workout_type} - ${formatDistance(activity.distance || activity.distance_km || 0)}`,
-        workout: {
-          workout_type: activity.activity_type || activity.workout_type || 'running',
-          start_time: activity.start_time,
-          distance: (activity.distance || activity.distance_km || 0) * 1000,
-          duration: activity.duration || activity.duration_seconds || 0,
-          id: activity.id, // Add activity ID for run_id reference
-        },
+        activity_type: activity.activity_type || activity.workout_type || 'running',
+        activity_name: activity.activity_name || `${activity.activity_type || activity.workout_type} Workout`,
+        distance_km: activity.distance_km || (activity.distance ? activity.distance / 1000 : undefined),
+        duration_seconds: activity.duration_seconds || activity.duration || 0,
+        calories_burned: activity.calories_burned || activity.calories,
+        average_heart_rate: activity.average_heart_rate || activity.heart_rate_avg,
+        intensity_level: activity.intensity_level,
+        notes: activity.notes
       };
 
       const customization = {
         format: selectedFormat,
         voiceType: 'motivational' as const,
-        backgroundStyle: getBackgroundStyle(activity),
+        backgroundStyle: getBackgroundStyle(activityData),
         musicStyle: 'energetic' as const,
         includeStats: true,
         includeBranding: true,
       };
 
-      const result = await generateAchievementVideo(mockAchievement, customization);
+      const result = await generateActivityVideo(activityData, customization);
 
       if (result?.videoUrl) {
-        // Update the activity with the video URL
-        const table = activityType === 'manual' ? 'manual_activities' : 'imported_workouts';
-        
+        // Update the activity with the video URL        
         if (activityType === 'manual') {
           await supabase
             .from('manual_activities')
@@ -218,7 +217,7 @@ export default function ActivityDetailsScreen() {
               text: 'View Video',
               onPress: () => router.push({
                 pathname: '/video-preview',
-                params: { videoUrl: result.videoUrl, activityId: activity.id },
+                params: { videoUrl: result.videoUrl, runId: activity.id },
               }),
             },
             { text: 'OK' },
@@ -230,8 +229,8 @@ export default function ActivityDetailsScreen() {
     }
   };
 
-  const getBackgroundStyle = (activity: ActivityDetails) => {
-    const type = activity.activity_type || activity.workout_type || '';
+  const getBackgroundStyle = (activity: { activity_type: string }) => {
+    const type = activity.activity_type || '';
     if (type.toLowerCase().includes('running')) return 'running_track';
     if (type.toLowerCase().includes('cycling')) return 'mountain_road';
     if (type.toLowerCase().includes('walking')) return 'nature_path';
@@ -622,6 +621,7 @@ export default function ActivityDetailsScreen() {
               style={[styles.generateButton, !limits.canGenerate && styles.generateButtonDisabled]}
               onPress={handleGenerateVideo}
               disabled={!limits.canGenerate}
+              activeOpacity={0.8}
             >
               <LinearGradient
                 colors={limits.canGenerate ? ['#8B5CF6', '#7C3AED'] : ['#9CA3AF', '#6B7280']}

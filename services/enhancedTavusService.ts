@@ -1,6 +1,5 @@
 interface VideoGenerationRequest {
-  achievementId: string;
-  templateId?: string;
+  activityId: string;
   format: 'square' | 'vertical' | 'horizontal';
   customization?: {
     voiceType?: 'motivational' | 'encouraging' | 'calm' | 'excited' | 'proud';
@@ -11,19 +10,16 @@ interface VideoGenerationRequest {
   };
 }
 
-interface Achievement {
+interface ActivityData {
   id: string;
-  achievement_type: 'personal_record' | 'milestone' | 'streak' | 'first_time';
-  category: 'distance' | 'duration' | 'pace' | 'consistency' | 'calories' | 'frequency';
-  value: number;
-  previous_value: number | null;
-  description: string;
-  workout?: {
-    workout_type: string;
-    start_time: string;
-    distance: number;
-    duration: number;
-  };
+  activity_type: string;
+  activity_name: string;
+  distance_km?: number;
+  duration_seconds: number;
+  calories_burned?: number;
+  average_heart_rate?: number;
+  intensity_level?: number;
+  notes?: string;
 }
 
 interface TavusResponse {
@@ -32,6 +28,14 @@ interface TavusResponse {
   video_url?: string;
   preview_url?: string;
   thumbnail_url?: string;
+}
+
+interface VideoGenerationResult {
+  success: boolean;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  videoId?: string;
+  error?: string;
 }
 
 class EnhancedTavusService {
@@ -46,64 +50,22 @@ class EnhancedTavusService {
     }
   }
 
-  private generateAchievementScript(achievement: Achievement): string {
-    const { achievement_type, category, value, previous_value, description, workout } = achievement;
+  private generateActivityScript(activity: ActivityData): string {
+    const { activity_type, activity_name, distance_km, duration_seconds, calories_burned } = activity;
     
-    const scripts = {
-      personal_record: {
-        distance: [
-          `Incredible achievement! You just set a new personal record by completing ${(value / 1000).toFixed(2)} kilometers! Your previous best was ${previous_value ? (previous_value / 1000).toFixed(2) : '0'} km. You're absolutely crushing your fitness goals!`,
-          `What a phenomenal run! You've just smashed your distance record with an amazing ${(value / 1000).toFixed(2)}km performance. That's ${previous_value ? ((value - previous_value) / 1000).toFixed(2) : value / 1000}km further than your previous best. Your dedication is truly inspiring!`,
-          `Outstanding performance! You've just achieved a new distance milestone of ${(value / 1000).toFixed(2)} kilometers. This represents incredible progress from your previous record. Keep pushing those boundaries!`
-        ],
-        duration: [
-          `Remarkable endurance! You just completed your longest workout ever - ${Math.floor(value / 60)} minutes of pure determination! Your previous best was ${previous_value ? Math.floor(previous_value / 60) : 0} minutes. You're building incredible stamina!`,
-          `What an amazing display of persistence! ${Math.floor(value / 60)} minutes of continuous effort shows your incredible commitment to fitness. You've just set a new personal record for workout duration!`,
-          `Exceptional dedication! Your ${Math.floor(value / 60)}-minute workout is your longest yet, proving that your endurance is reaching new heights. This is what commitment looks like!`
-        ],
-        pace: [
-          `Lightning fast! You just achieved your best pace ever at ${value.toFixed(2)} minutes per kilometer! Your speed and efficiency are reaching new levels. This is the result of all your hard training!`,
-          `Incredible speed! Your new pace record of ${value.toFixed(2)} min/km shows how much your fitness has improved. You're getting faster and stronger with every run!`,
-          `Blazing performance! ${value.toFixed(2)} minutes per kilometer - that's your fastest pace yet! Your training is clearly paying off in spectacular fashion!`
-        ]
-      },
-      milestone: {
-        distance: [
-          `Congratulations on reaching this incredible milestone! ${(value / 1000).toFixed(0)}km completed - this is a major achievement that shows your dedication and perseverance. You should be incredibly proud!`,
-          `What a momentous achievement! Completing ${(value / 1000).toFixed(0)} kilometers is no small feat. This milestone represents hours of training, dedication, and pure determination. Celebrate this victory!`,
-          `Milestone unlocked! ${(value / 1000).toFixed(0)}km is a significant distance that many people never achieve. You've just proven that with commitment and persistence, anything is possible!`
-        ]
-      },
-      first_time: [
-        `Welcome to your fitness journey! Completing your first ${workout?.workout_type || 'workout'} is a huge step towards a healthier, stronger you. Every expert was once a beginner - you've just taken that crucial first step!`,
-        `Congratulations on your first ${workout?.workout_type || 'workout'}! This is the beginning of something amazing. You've just proven to yourself that you can do anything you set your mind to!`,
-        `First ${workout?.workout_type || 'workout'} complete! This is a moment to celebrate - you've just started a journey that will transform your health, confidence, and life. Here's to many more achievements ahead!`
-      ],
-      streak: [
-        `Incredible consistency! ${value} days in a row of staying committed to your fitness goals. This streak shows your dedication and discipline. You're building habits that will last a lifetime!`,
-        `${value} days strong! Your consistency is absolutely inspiring. This streak proves that you have the determination to achieve anything you set your mind to. Keep this momentum going!`,
-        `Streak master! ${value} consecutive days of fitness commitment is no accident - it's the result of discipline, planning, and pure determination. You're setting an amazing example!`
-      ]
-    };
-
-    // Select appropriate script based on achievement type and category
-    let scriptArray: string[];
+    const durationMinutes = Math.floor(duration_seconds / 60);
+    const distanceText = distance_km ? `${distance_km.toFixed(2)} kilometers` : '';
+    const caloriesText = calories_burned ? `${calories_burned} calories` : '';
     
-    if (achievement_type === 'personal_record' && scripts.personal_record[category as keyof typeof scripts.personal_record]) {
-      scriptArray = scripts.personal_record[category as keyof typeof scripts.personal_record] as string[];
-    } else if (achievement_type === 'milestone' && scripts.milestone[category as keyof typeof scripts.milestone]) {
-      scriptArray = scripts.milestone[category as keyof typeof scripts.milestone] as string[];
-    } else if (achievement_type === 'first_time') {
-      scriptArray = scripts.first_time;
-    } else if (achievement_type === 'streak') {
-      scriptArray = scripts.streak;
-    } else {
-      // Fallback to description
-      return `Amazing achievement! ${description} Your dedication to fitness is truly inspiring. Keep up the incredible work!`;
-    }
+    const scripts = [
+      `Incredible achievement! You just completed ${activity_name}${distanceText ? ` covering ${distanceText}` : ''} in ${durationMinutes} minutes${caloriesText ? ` and burned ${caloriesText}` : ''}. Your dedication to fitness is truly inspiring!`,
+      
+      `What a fantastic ${activity_type.toLowerCase()} session! ${activity_name} completed${distanceText ? ` - ${distanceText}` : ''} in ${durationMinutes} minutes${caloriesText ? ` with ${caloriesText} burned` : ''}. You're absolutely crushing your fitness goals!`,
+      
+      `Outstanding performance on your ${activity_type.toLowerCase()} today! ${distanceText ? `${distanceText} completed` : `${activity_name} finished`} in ${durationMinutes} minutes${caloriesText ? ` burning ${caloriesText}` : ''}. Keep up the amazing work!`,
+    ];
 
-    // Return a random script from the appropriate array
-    return scriptArray[Math.floor(Math.random() * scriptArray.length)];
+    return scripts[Math.floor(Math.random() * scripts.length)];
   }
 
   private getVideoConfig(format: string, customization?: VideoGenerationRequest['customization']) {
@@ -123,29 +85,64 @@ class EnhancedTavusService {
     };
   }
 
-  async generateAchievementVideo(
-    achievement: Achievement, 
+  async generateActivityVideo(
+    activity: ActivityData, 
     format: 'square' | 'vertical' | 'horizontal' = 'square',
-    templateId?: string
-  ): Promise<TavusResponse> {
+    customization?: VideoGenerationRequest['customization']
+  ): Promise<VideoGenerationResult> {
     if (!this.apiKey) {
-      throw new Error('Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.');
+      return {
+        success: false,
+        error: 'Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.'
+      };
     }
 
     try {
-      const script = this.generateAchievementScript(achievement);
-      const videoConfig = this.getVideoConfig(format);
+      // Verify user authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error('User not authenticated');
+      }
+
+      const script = this.generateActivityScript(activity);
+      const videoConfig = this.getVideoConfig(format, customization);
       
+      // Create video generation record with ONLY existing columns
+      const videoGenRecord = {
+        user_id: user.id,                    // ✅ EXISTS in schema
+        run_id: activity.id,                 // ✅ EXISTS in schema (references manual_activities)
+        status: 'pending' as const,          // ✅ EXISTS in schema
+        script_content: script,              // ✅ EXISTS in schema
+        // ❌ REMOVED: achievement_id, template_id, video_format, generation_config
+        // These columns don't exist in the actual schema
+      };
+
+      console.log('📝 Creating video generation record with correct schema:', videoGenRecord);
+
+      const { data: videoGeneration, error: insertError } = await supabase
+        .from('video_generations')
+        .insert([videoGenRecord])
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Video generation record error:', insertError);
+        throw new Error(`Failed to create video generation record: ${insertError.message}`);
+      }
+
+      console.log('✅ Video generation record created:', videoGeneration);
+
+      // Generate video using Tavus API
       const payload = {
         replica_id: 'default-replica', // In production, this would be user-specific
         script: script,
-        video_name: `achievement_${achievement.id}_${Date.now()}`,
+        video_name: `activity_${activity.id}_${Date.now()}`,
         callback_url: null,
         ...videoConfig
       };
 
       console.log('🎬 Generating video with Tavus API...', { 
-        achievementType: achievement.achievement_type,
+        activityType: activity.activity_type,
         format,
         scriptLength: script.length 
       });
@@ -171,17 +168,63 @@ class EnhancedTavusService {
 
       const data = await response.json();
       console.log('✅ Tavus video generation started:', data);
-      
-      return {
-        video_id: data.video_id,
-        status: data.status || 'pending',
-        video_url: data.download_url,
-        preview_url: data.hosted_url,
-        thumbnail_url: data.thumbnail_url
-      };
+
+      // Update video generation record with Tavus job ID
+      await supabase
+        .from('video_generations')
+        .update({
+          tavus_job_id: data.video_id,
+          status: 'processing',
+        })
+        .eq('id', videoGeneration.id);
+
+      // Poll for completion
+      const completedVideo = await this.pollVideoCompletion(data.video_id, 30, 3000);
+
+      if (completedVideo.status === 'completed' && completedVideo.video_url) {
+        // Update records with final video URL
+        await supabase
+          .from('video_generations')
+          .update({
+            status: 'completed',
+            video_url: completedVideo.video_url,
+          })
+          .eq('id', videoGeneration.id);
+
+        return {
+          success: true,
+          videoUrl: completedVideo.video_url,
+          thumbnailUrl: completedVideo.thumbnail_url,
+          videoId: videoGeneration.id
+        };
+      } else {
+        throw new Error('Video generation failed - no video URL returned');
+      }
+
     } catch (error) {
-      console.error('❌ Error generating achievement video:', error);
-      throw error;
+      console.error('❌ Video generation error:', error);
+      
+      // Update video generation record with error if it was created
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('video_generations')
+            .update({
+              status: 'failed',
+              error_message: error instanceof Error ? error.message : 'Unknown error'
+            })
+            .eq('user_id', user.id)
+            .in('status', ['pending', 'processing']);
+        }
+      } catch (updateError) {
+        console.error('❌ Failed to update video generation record with error:', updateError);
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Video generation failed'
+      };
     }
   }
 
@@ -249,65 +292,6 @@ class EnhancedTavusService {
     throw new Error('Video generation timeout - exceeded maximum polling attempts');
   }
 
-  // Batch video generation for multiple achievements
-  async generateBatchVideos(
-    achievements: Achievement[],
-    format: 'square' | 'vertical' | 'horizontal' = 'square'
-  ): Promise<{ success: TavusResponse[], failed: { achievement: Achievement, error: string }[] }> {
-    if (!this.apiKey) {
-      throw new Error('Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.');
-    }
-
-    const success: TavusResponse[] = [];
-    const failed: { achievement: Achievement, error: string }[] = [];
-
-    console.log(`🎬 Starting batch video generation for ${achievements.length} achievements...`);
-
-    for (const achievement of achievements) {
-      try {
-        const result = await this.generateAchievementVideo(achievement, format);
-        success.push(result);
-        
-        // Add delay between requests to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        failed.push({
-          achievement,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    }
-
-    console.log(`✅ Batch generation complete: ${success.length} success, ${failed.length} failed`);
-    return { success, failed };
-  }
-
-  // Get available video templates
-  async getVideoTemplates(): Promise<any[]> {
-    if (!this.apiKey) {
-      console.warn('⚠️ Tavus API key missing - cannot fetch templates');
-      return [];
-    }
-
-    try {
-      const response = await fetch(`${this.baseUrl}/templates`, {
-        method: 'GET',
-        headers: {
-          'x-api-key': this.apiKey,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Tavus API error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('❌ Error fetching video templates:', error);
-      return [];
-    }
-  }
-
   // Check if API key is configured
   isConfigured(): boolean {
     return !!this.apiKey;
@@ -330,3 +314,6 @@ class EnhancedTavusService {
 }
 
 export const enhancedTavusService = new EnhancedTavusService();
+
+// Import supabase client
+import { supabase } from '@/lib/supabase';

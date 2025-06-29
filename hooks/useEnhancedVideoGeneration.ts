@@ -3,19 +3,16 @@ import { supabase } from '@/lib/supabase';
 import { enhancedTavusService } from '@/services/enhancedTavusService';
 import { useAuth } from './useAuth';
 
-interface Achievement {
+interface ActivityData {
   id: string;
-  achievement_type: 'personal_record' | 'milestone' | 'streak' | 'first_time';
-  category: 'distance' | 'duration' | 'pace' | 'consistency' | 'calories' | 'frequency';
-  value: number;
-  previous_value: number | null;
-  description: string;
-  workout?: {
-    workout_type: string;
-    start_time: string;
-    distance: number;
-    duration: number;
-  };
+  activity_type: string;
+  activity_name: string;
+  distance_km?: number;
+  duration_seconds: number;
+  calories_burned?: number;
+  average_heart_rate?: number;
+  intensity_level?: number;
+  notes?: string;
 }
 
 interface VideoGenerationState {
@@ -47,10 +44,9 @@ export function useEnhancedVideoGeneration() {
     currentStep: 'initializing'
   });
 
-  const generateAchievementVideo = async (
-    achievement: Achievement,
-    customization: VideoCustomization,
-    templateId?: string
+  const generateActivityVideo = async (
+    activity: ActivityData,
+    customization: VideoCustomization
   ) => {
     if (!user) {
       throw new Error('User not authenticated');
@@ -86,32 +82,6 @@ export function useEnhancedVideoGeneration() {
         throw new Error('User not authenticated');
       }
 
-      // Create video generation record with proper user_id
-      const videoGenRecord = {
-        user_id: authUser.id,
-        run_id: null, // For achievement videos, we don't have a run_id
-        achievement_id: achievement.id,
-        template_id: templateId,
-        status: 'pending' as const,
-        video_format: customization.format,
-        generation_config: customization
-      };
-
-      console.log('📝 Creating video generation record:', videoGenRecord);
-
-      const { data: videoGeneration, error: insertError } = await supabase
-        .from('video_generations')
-        .insert([videoGenRecord])
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('❌ Video generation record error:', insertError);
-        throw new Error(`Failed to create video generation record: ${insertError.message}`);
-      }
-
-      console.log('✅ Video generation record created:', videoGeneration);
-
       setState(prev => ({
         ...prev,
         progress: 'Requesting video generation from Tavus...',
@@ -119,71 +89,35 @@ export function useEnhancedVideoGeneration() {
       }));
 
       // Generate video using Tavus API directly
-      const tavusResponse = await enhancedTavusService.generateAchievementVideo(
-        achievement,
+      const result = await enhancedTavusService.generateActivityVideo(
+        activity,
         customization.format,
-        templateId
+        customization
       );
 
-      // Update video generation record with Tavus job ID
-      await supabase
-        .from('video_generations')
-        .update({
-          tavus_job_id: tavusResponse.video_id,
-          status: 'processing',
-        })
-        .eq('id', videoGeneration.id);
-
-      setState(prev => ({
-        ...prev,
-        progress: 'Video is being processed by Tavus AI...',
-      }));
-
-      // Poll for completion
-      const completedVideo = await enhancedTavusService.pollVideoCompletion(
-        tavusResponse.video_id,
-        30, // max attempts
-        3000 // 3 second intervals
-      );
-
-      if (completedVideo.status === 'completed' && completedVideo.video_url) {
+      if (result.success && result.videoUrl) {
         setState(prev => ({
           ...prev,
-          progress: 'Finalizing video...',
-          currentStep: 'finalizing'
+          progress: 'Video generation completed!',
+          currentStep: 'completed'
         }));
-
-        // Update records with final video URL
-        await supabase
-          .from('video_generations')
-          .update({
-            status: 'completed',
-            video_url: completedVideo.video_url,
-          })
-          .eq('id', videoGeneration.id);
-
-        // Mark achievement as processed
-        await supabase
-          .from('achievements')
-          .update({ is_processed: true })
-          .eq('id', achievement.id);
 
         setState({
           isGenerating: false,
           progress: 'Video generation completed!',
           error: null,
-          videoUrl: completedVideo.video_url,
-          thumbnailUrl: completedVideo.thumbnail_url || null,
+          videoUrl: result.videoUrl,
+          thumbnailUrl: result.thumbnailUrl || null,
           currentStep: 'completed'
         });
 
         return {
-          videoUrl: completedVideo.video_url,
-          thumbnailUrl: completedVideo.thumbnail_url,
-          videoId: videoGeneration.id
+          videoUrl: result.videoUrl,
+          thumbnailUrl: result.thumbnailUrl,
+          videoId: result.videoId
         };
       } else {
-        throw new Error('Video generation failed - no video URL returned');
+        throw new Error(result.error || 'Video generation failed - no video URL returned');
       }
 
     } catch (error) {
@@ -198,109 +132,7 @@ export function useEnhancedVideoGeneration() {
         currentStep: 'failed'
       });
 
-      // Update video generation record with error if it was created
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          await supabase
-            .from('video_generations')
-            .update({
-              status: 'failed',
-              error_message: error instanceof Error ? error.message : 'Unknown error'
-            })
-            .eq('user_id', authUser.id)
-            .in('status', ['pending', 'processing']);
-        }
-      } catch (updateError) {
-        console.error('❌ Failed to update video generation record with error:', updateError);
-      }
-
       throw error;
-    }
-  };
-
-  const generateBatchVideos = async (
-    achievements: Achievement[],
-    format: 'square' | 'vertical' | 'horizontal' = 'square'
-  ) => {
-    if (!user || achievements.length === 0) return;
-
-    // Check if Tavus is configured
-    if (!enhancedTavusService.isConfigured()) {
-      throw new Error('Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.');
-    }
-
-    // Verify user authentication
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-    if (authError || !authUser) {
-      throw new Error('User not authenticated');
-    }
-
-    setState({
-      isGenerating: true,
-      progress: `Generating ${achievements.length} videos...`,
-      error: null,
-      videoUrl: null,
-      thumbnailUrl: null,
-      currentStep: 'processing'
-    });
-
-    try {
-      const results = await enhancedTavusService.generateBatchVideos(achievements, format);
-      
-      // Update database records for successful generations
-      for (const success of results.success) {
-        const achievement = achievements.find(a => a.id === success.video_id);
-        if (achievement) {
-          await supabase
-            .from('video_generations')
-            .insert({
-              user_id: authUser.id,
-              achievement_id: achievement.id,
-              tavus_job_id: success.video_id,
-              status: 'processing',
-              video_format: format,
-              generation_config: { format }
-            });
-        }
-      }
-
-      setState({
-        isGenerating: false,
-        progress: `Generated ${results.success.length} videos successfully`,
-        error: results.failed.length > 0 ? `${results.failed.length} videos failed` : null,
-        videoUrl: null,
-        thumbnailUrl: null,
-        currentStep: 'completed'
-      });
-
-      return results;
-    } catch (error) {
-      setState({
-        isGenerating: false,
-        progress: '',
-        error: error instanceof Error ? error.message : 'Batch generation failed',
-        videoUrl: null,
-        thumbnailUrl: null,
-        currentStep: 'failed'
-      });
-
-      throw error;
-    }
-  };
-
-  const getVideoTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('video_templates')
-        .select('*')
-        .eq('is_active', true);
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('❌ Error fetching video templates:', error);
-      return [];
     }
   };
 
@@ -334,9 +166,7 @@ export function useEnhancedVideoGeneration() {
 
   return {
     ...state,
-    generateAchievementVideo,
-    generateBatchVideos,
-    getVideoTemplates,
+    generateActivityVideo,
     resetState,
     getProgressPercentage
   };
