@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
-import { Clock, AlertCircle, ExternalLink, X } from 'lucide-react-native';
+import { Clock, CircleAlert as AlertCircle, ExternalLink, X } from 'lucide-react-native';
 
 interface VideoGenerationProgressProps {
   isGenerating: boolean;
