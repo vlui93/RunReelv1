@@ -196,7 +196,7 @@ export function useEnhancedVideoGeneration() {
         thumbnailUrl: null,
         currentStep: 'failed',
         elapsedTime: 0,
-        estimatedTimeRemaining: 0
+        estimatedTimeRemaining: 0,
         elapsedTime: 0,
         estimatedTimeRemaining: 180
       });
