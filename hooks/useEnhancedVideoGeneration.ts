@@ -117,10 +117,11 @@ export function useEnhancedVideoGeneration() {
         }
       };
 
-      // Use FAL.ai integration for enhanced customization features
-      const tavusResponse = await enhancedTavusService.generateVideoWithFal(
+      // Use Tavus API directly for video generation
+      const tavusResponse = await enhancedTavusService.generateAchievementVideo(
         achievement,
-        videoRequest
+        customization.format,
+        templateId
       );
 
       // Update video generation record with Tavus job ID
