@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useManualActivities } from '@/hooks/useManualActivities';
 import { useHealthData } from '@/hooks/useHealthData';
+import { useVideoLibrary } from '@/hooks/useVideoLibrary';
 import { useAchievements } from '@/hooks/useAchievements';
 import { 
   Plus, 
@@ -12,7 +13,7 @@ import {
   Zap, 
   Calendar,
   TrendingUp,
-  Play,
+  Video,
   Settings,
   Smartphone,
   Apple,
@@ -24,6 +25,7 @@ export default function HomeTab() {
   const { user, loading: authLoading } = useAuth();
   const { activities, getActivityStats } = useManualActivities();
   const { getConnectedSources, getWorkoutStats } = useHealthData();
+  const { getVideoStats } = useVideoLibrary();
   const { stats: achievementStats } = useAchievements();
 
   const [greeting, setGreeting] = useState('');
@@ -69,6 +71,7 @@ export default function HomeTab() {
 
   const activityStats = getActivityStats();
   const workoutStats = getWorkoutStats();
+  const videoStats = getVideoStats();
   const connectedSources = getConnectedSources();
 
   const totalActivities = activityStats.totalActivities + workoutStats.totalWorkouts;
@@ -127,10 +130,10 @@ export default function HomeTab() {
 
           <TouchableOpacity 
             style={styles.secondaryAction}
-            onPress={() => router.push('/(tabs)/navigate')}
+            onPress={() => router.push('/(tabs)/videos')}
           >
-            <Play size={20} color="#10B981" />
-            <Text style={styles.secondaryActionText}>Start Run</Text>
+            <Video size={20} color="#8B5CF6" />
+            <Text style={styles.secondaryActionText}>My Videos</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -156,8 +159,8 @@ export default function HomeTab() {
           </View>
           <View style={styles.statCard}>
             <Trophy size={24} color="#EF4444" />
-            <Text style={styles.statValue}>{achievementStats.totalAchievements}</Text>
-            <Text style={styles.statLabel}>Achievements</Text>
+            <Text style={styles.statValue}>{videoStats.completedVideos}</Text>
+            <Text style={styles.statLabel}>Videos</Text>
           </View>
         </View>
       </View>

@@ -331,15 +331,9 @@ export function useMockDataGenerator() {
 
       setProgress(90);
 
-      const { error: postsError } = await supabase
-        .from('social_posts')
-        .insert(socialPosts);
-
-      if (postsError) throw postsError;
-
       setProgress(100);
       
-      console.log(`Generated ${activities.length} mock activities and ${socialPosts.length} social posts`);
+      console.log(`Generated ${activities.length} mock activities`);
     } catch (error) {
       console.error('Error generating mock data:', error);
       throw error;
@@ -360,14 +354,6 @@ export function useMockDataGenerator() {
         .eq('user_id', user.id);
 
       if (activitiesError) throw activitiesError;
-
-      // Delete user's social posts
-      const { error: postsError } = await supabase
-        .from('social_posts')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (postsError) throw postsError;
 
       console.log('Mock data cleared successfully');
     } catch (error) {

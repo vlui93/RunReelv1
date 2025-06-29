@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Navigation, Activity, Users, User, Video } from 'lucide-react-native';
+import { Chrome as Home, Navigation, Activity, User, Video } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -55,15 +55,6 @@ export default function TabLayout() {
           title: 'Videos',
           tabBarIcon: ({ size, color }) => (
             <Video size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="social"
-        options={{
-          title: 'Social',
-          tabBarIcon: ({ size, color }) => (
-            <Users size={size} color={color} />
           ),
         }}
       />

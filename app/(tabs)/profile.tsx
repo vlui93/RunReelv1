@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } fr
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useManualActivities } from '@/hooks/useManualActivities';
+import { useVideoLibrary } from '@/hooks/useVideoLibrary';
 import { useAchievements } from '@/hooks/useAchievements';
-import { User, Settings, Trophy, Target, TrendingUp, Calendar, LogOut, CreditCard as Edit, Share2, Award, Activity as ActivityIcon } from 'lucide-react-native';
+import { User, Settings, Trophy, Target, TrendingUp, Calendar, LogOut, CreditCard as Edit, Share2, Award, Activity as ActivityIcon, Video } from 'lucide-react-native';
 
 export default function ProfileTab() {
   const { user, signOut } = useAuth();
   const { getActivityStats } = useManualActivities();
+  const { getVideoStats } = useVideoLibrary();
   const { stats: achievementStats } = useAchievements();
 
   const handleSignOut = async () => {
@@ -48,6 +50,7 @@ export default function ProfileTab() {
   }
 
   const stats = getActivityStats();
+  const videoStats = getVideoStats();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
@@ -109,8 +112,8 @@ export default function ProfileTab() {
           </View>
           <View style={styles.statCard}>
             <Trophy size={24} color="#EF4444" />
-            <Text style={styles.statValue}>{achievementStats.totalAchievements}</Text>
-            <Text style={styles.statLabel}>Achievements</Text>
+            <Text style={styles.statValue}>{videoStats.completedVideos}</Text>
+            <Text style={styles.statLabel}>Videos</Text>
           </View>
         </View>
       </View>
@@ -182,11 +185,11 @@ export default function ProfileTab() {
 
           <TouchableOpacity 
             style={styles.actionCard}
-            onPress={() => router.push('/achievements')}
+            onPress={() => router.push('/(tabs)/videos')}
           >
-            <Trophy size={24} color="#F59E0B" />
-            <Text style={styles.actionTitle}>View Achievements</Text>
-            <Text style={styles.actionSubtitle}>See your progress</Text>
+            <Video size={24} color="#8B5CF6" />
+            <Text style={styles.actionTitle}>Video Library</Text>
+            <Text style={styles.actionSubtitle}>View your videos</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 

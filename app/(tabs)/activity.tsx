@@ -13,7 +13,8 @@ import {
   TrendingUp,
   Filter,
   Search,
-  Activity as ActivityIcon
+  Activity as ActivityIcon,
+  Video
 } from 'lucide-react-native';
 
 export default function ActivityTab() {
@@ -118,10 +119,10 @@ export default function ActivityTab() {
             <Text style={styles.statValue}>{Math.floor(stats.totalDuration / 60)}h</Text>
             <Text style={styles.statLabel}>Time</Text>
           </View>
-          <View style={styles.statCard}>
+            onPress={() => router.push('/(tabs)/videos')}
             <Zap size={20} color="#EF4444" />
-            <Text style={styles.statValue}>{stats.totalCalories}</Text>
-            <Text style={styles.statLabel}>Calories</Text>
+            <Video size={20} color="#8B5CF6" />
+            <Text style={styles.secondaryActionText}>My Videos</Text>
           </View>
         </View>
       </View>

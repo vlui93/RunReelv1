@@ -11,7 +11,10 @@ import {
   Clock, 
   Target, 
   Zap,
-  Navigation as NavigationIcon
+  Navigation as NavigationIcon,
+  Activity,
+  Video,
+  Plus
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MapViewComponent from '@/components/MapViewComponent';
@@ -91,14 +94,14 @@ export default function NavigateTab() {
         <Text style={styles.authTitle}>Sign in to track runs</Text>
         <TouchableOpacity 
           style={styles.authButton}
-          onPress={() => router.push('/auth')}
+          onPress={() => router.push('/(tabs)/activity')}
         >
           <Text style={styles.authButtonText}>Sign In</Text>
         </TouchableOpacity>
       </View>
     );
-  }
-
+            <Activity size={24} color="#FFFFFF" />
+            <Text style={styles.primaryActionText}>View Activities</Text>
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -155,15 +158,10 @@ export default function NavigateTab() {
 
       {/* Control Buttons */}
       <View style={styles.controlsContainer}>
-        {!isRunning ? (
+            onPress={() => router.push('/(tabs)/videos')}
           <TouchableOpacity style={styles.startButton} onPress={handleStartRun}>
-            <LinearGradient
-              colors={['#10B981', '#059669']}
-              style={styles.startButtonGradient}
-            >
-              <Play size={32} color="#FFFFFF" />
-              <Text style={styles.startButtonText}>Start Run</Text>
-            </LinearGradient>
+            <Video size={20} color="#8B5CF6" />
+            <Text style={styles.secondaryActionText}>My Videos</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.runningControls}>
@@ -204,10 +202,10 @@ export default function NavigateTab() {
 
       {/* Location Permission Notice */}
       {!hasLocationPermission && (
-        <View style={styles.permissionNotice}>
+            onPress={() => router.push('/manual-entry')}
           <MapPin size={20} color="#F59E0B" />
-          <Text style={styles.permissionNoticeText}>
-            Location permission required for GPS tracking
+            <Plus size={20} color="#10B981" />
+            <Text style={styles.secondaryActionText}>Log Activity</Text>
           </Text>
         </View>
       )}
