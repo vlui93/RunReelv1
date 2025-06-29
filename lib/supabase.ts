@@ -77,6 +77,7 @@ export const forceSchemaReload = async () => {
     return await refreshSupabaseSchema();
   } catch (error) {
     console.error('Force schema reload failed:', error);
+  }
 }
 
 export type Database = {
