@@ -9,7 +9,7 @@
     "build:web": "expo export --platform web",
     "lint": "expo lint",
     "clean": "rm -rf node_modules package-lock.json && npm install",
-    "reset": "npx expo install --fix"
+    "reset": "rm -rf node_modules package-lock.json && npm install && npx expo install --fix"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
