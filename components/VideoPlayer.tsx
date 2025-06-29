@@ -4,13 +4,11 @@ import {
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  Image, 
   Alert, 
   Linking, 
   Platform,
   Dimensions 
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -36,7 +34,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [status, setStatus] = useState<any>({});
 
   const openInNativePlayer = async () => {
     if (onPress) {
@@ -93,17 +90,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onPress={openInNativePlayer}
         activeOpacity={0.8}
       >
-        {thumbnail ? (
-          <Image source={{ uri: thumbnail }} style={styles.thumbnail} />
-        ) : (
-          <LinearGradient
-            colors={['#667eea', '#764ba2']}
-            style={styles.placeholderThumbnail}
-          >
-            <Text style={styles.activityEmoji}>{getActivityEmoji(activityType)}</Text>
-            <Text style={styles.placeholderText}>Tap to play video</Text>
-          </LinearGradient>
-        )}
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          style={styles.placeholderThumbnail}
+        >
+          <Text style={styles.activityEmoji}>{getActivityEmoji(activityType)}</Text>
+          <Text style={styles.placeholderText}>Tap to play video</Text>
+        </LinearGradient>
         
         <View style={styles.playOverlay}>
           <View style={styles.playButton}>
@@ -123,49 +116,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Native mobile version with actual video player
   return (
     <View style={[styles.videoContainer, style]}>
-      <TouchableOpacity 
-        style={styles.videoWrapper}
-        onPress={() => setShowControls(!showControls)}
-        activeOpacity={1}
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        style={styles.placeholderThumbnail}
       >
-        <Video
-          source={{ uri: videoUrl }}
-          style={styles.video}
-          useNativeControls={false}
-          resizeMode={ResizeMode.COVER}
-          isLooping={false}
-          isMuted={isMuted}
-          shouldPlay={isPlaying}
-          onPlaybackStatusUpdate={setStatus}
-        />
-        
-        {showControls && (
-          <View style={styles.controlsOverlay}>
-            <View style={styles.topControls}>
-              <TouchableOpacity style={styles.controlButton} onPress={toggleMute}>
-                {isMuted ? (
-                  <VolumeX size={20} color="#FFFFFF" />
-                ) : (
-                  <Volume2 size={20} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.controlButton} onPress={openInNativePlayer}>
-                <Maximize size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity style={styles.centerPlayButton} onPress={togglePlayback}>
-              <View style={styles.playButtonLarge}>
-                {isPlaying ? (
-                  <Pause size={24} color="#FFFFFF" fill="#FFFFFF" />
-                ) : (
-                  <Play size={24} color="#FFFFFF" fill="#FFFFFF" />
-                )}
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
+        <Text style={styles.activityEmoji}>{getActivityEmoji(activityType)}</Text>
+        <Text style={styles.placeholderText}>Tap to open video</Text>
+      </LinearGradient>
+      
+      <TouchableOpacity 
+        style={styles.playOverlay}
+        onPress={openInNativePlayer}
+      >
+        <View style={styles.playButton}>
+          <Play size={20} color="#FFFFFF" fill="#FFFFFF" />
+        </View>
       </TouchableOpacity>
       
       <View style={styles.videoInfo}>
@@ -192,15 +157,6 @@ const styles = StyleSheet.create({
   },
   videoWrapper: {
     position: 'relative',
-  },
-  video: {
-    width: '100%',
-    height: 200,
-  },
-  thumbnail: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#e0e0e0',
   },
   placeholderThumbnail: {
     width: '100%',

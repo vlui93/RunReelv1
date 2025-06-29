@@ -17,10 +17,8 @@ import {
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoLibrary } from '@/hooks/useVideoLibrary';
-import { Video, Play, MoveVertical as MoreVertical, CreditCard as Edit3, Trash2, Share2, Search, Grid2x2 as Grid, List, X } from 'lucide-react-native'2x2 as Grid, List, X, Check, Calendar, Clock, Target } from 'lucide-react-native';
+import { Video, Play, MoveVertical as MoreVertical, CreditCard as Edit3, Trash2, Share2, Search, Grid2x2 as Grid, List, X } from 'lucide-react-native';
 import { VideoPlayer } from '@/components/VideoPlayer';
-import { ThumbnailService } from '@/services/thumbnailService';
-import { GenZScriptGenerator } from '@/services/genZScriptGenerator';
 
 interface VideoItem {
   id: string;
@@ -38,9 +36,14 @@ interface VideoItem {
 
 export default function VideosTab() {
   const { user } = useAuth();
-  const [videos, setVideos] = useState<VideoItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { 
+    videos, 
+    loading, 
+    refreshing, 
+    fetchVideos, 
+    updateVideoTitle, 
+    deleteVideo 
+  } = useVideoLibrary();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -58,33 +61,11 @@ export default function VideosTab() {
     { id: 'recent', label: 'Recent' },
   ];
 
-  useEffect(() => {
-    if (user) {
-      fetchVideos();
-    }
-  }, [user]);
-
-  const loadVideos = async () => {
-    try {
-      setLoading(true);
-      
-      // Use the video library hook instead of duplicating logic
-      await fetchVideos();
-    } catch (error) {
-      console.error('Failed to load videos:', error);
-      Alert.alert('Error', 'Failed to load videos. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const onRefresh = async () => {
-    setRefreshing(true);
     await fetchVideos();
-    setRefreshing(false);
   };
 
-  const filteredVideos = videos.filter((video) => {
+  const filteredVideos = videos.filter((video: any) => {
     const matchesSearch = video.activity_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          video.activity_type?.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -99,7 +80,7 @@ export default function VideosTab() {
     return video.activity_type?.toLowerCase().includes(selectedFilter);
   });
 
-  const handleVideoPress = (video: VideoItem) => {
+  const handleVideoPress = (video: any) => {
     if (video.video_url) {
       router.push({
         pathname: '/video-preview',
@@ -114,7 +95,7 @@ export default function VideosTab() {
     }
   };
 
-  const handleVideoOptions = (video: VideoItem) => {
+  const handleVideoOptions = (video: any) => {
     setSelectedVideo(video);
     setShowOptionsModal(true);
   };
@@ -204,12 +185,12 @@ export default function VideosTab() {
     });
   };
 
-  const renderVideoItem = ({ item }: { item: VideoItem }) => (
+  const renderVideoItem = ({ item }: { item: any }) => (
     <View style={styles.videoItem}>
       <VideoPlayer
         videoUrl={item.video_url}
         thumbnail={item.thumbnail_url}
-        title={item.script_content || item.activity_name}
+        title={item.title}
         activityType={item.activity_type}
         onPress={() => handleVideoPress(item)}
         style={styles.videoPlayer}
@@ -217,7 +198,7 @@ export default function VideosTab() {
       
       <View style={styles.videoMeta}>
         <View style={styles.videoMetaHeader}>
-          <Text style={styles.activityType}>{item.activity_type.toUpperCase()}</Text>
+          <Text style={styles.activityType}>{item.activity_type?.toUpperCase() || 'ACTIVITY'}</Text>
           <TouchableOpacity
             style={styles.optionsButton}
             onPress={() => handleVideoOptions(item)}
@@ -226,8 +207,7 @@ export default function VideosTab() {
           </TouchableOpacity>
         </View>
         <Text style={styles.videoStats}>
-          {item.distance_km ? `${item.distance_km.toFixed(1)}km • ` : ''}
-          {item.calories_burned ? `${item.calories_burned} cal • ` : ''}
+          {item.duration ? `${Math.floor(item.duration / 60)} min • ` : ''}
           {formatDate(item.created_at)}
         </Text>
       </View>

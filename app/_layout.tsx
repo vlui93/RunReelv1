@@ -11,8 +11,9 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
-        <Stack.Screen name="run-summary" options={{ headerShown: false }} />
-        <Stack.Screen name="video-preview" options={{ headerShown: false }} />
+        <Stack.Screen name="manual-entry" options={{ headerShown: false }} />
+        <Stack.Screen name="activity-details" options={{ headerShown: false }} />
+        <Stack.Screen name="achievements" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

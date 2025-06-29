@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
-import { ThumbnailService } from '@/services/thumbnailService';
 
 export interface VideoLibraryItem {
   id: string;
@@ -35,7 +34,6 @@ export function useVideoLibrary() {
   const [videos, setVideos] = useState<VideoLibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (user) {
@@ -68,8 +66,6 @@ export function useVideoLibrary() {
       // Transform manual activities to video library items
       const transformedVideos: VideoLibraryItem[] = await Promise.all(
         (data || []).map(async (item: any) => {
-          const thumbnail = await ThumbnailService.generateThumbnail(item.video_url);
-          
           return {
             id: item.id,
             title: item.activity_name || `${item.activity_type} Video`,
@@ -80,7 +76,7 @@ export function useVideoLibrary() {
             script_content: item.script_content,
             activity_type: item.activity_type,
             duration: item.duration_seconds,
-            thumbnail_url: thumbnail,
+            thumbnail_url: undefined, // Will be handled by VideoPlayer component
           };
         })
       );
