@@ -17,25 +17,34 @@ import {
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoLibrary } from '@/hooks/useVideoLibrary';
-import { Video, Play, MoreVertical, Edit3, Trash2, Share2, Search, Grid, List, X } from 'lucide-react-native';
+import { Video, Play, MoveVertical as MoreVertical, CreditCard as Edit3, Trash2, Share2, Search, Grid2x2 as Grid, List, X } from 'lucide-react-native'2x2 as Grid, List, X, Check, Calendar, Clock, Target } from 'lucide-react-native';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { ThumbnailService } from '@/services/thumbnailService';
+import { GenZScriptGenerator } from '@/services/genZScriptGenerator';
+
+interface VideoItem {
+  id: string;
+  video_url: string;
+  activity_name: string;
+  activity_type: string;
+  distance_km?: number;
+  calories_burned?: number;
+  duration_seconds: number;
+  created_at: string;
+  thumbnail_url?: string;
+  script_content?: string;
+  status?: 'completed' | 'processing' | 'failed';
+}
 
 export default function VideosTab() {
   const { user } = useAuth();
-  const { 
-    videos, 
-    loading, 
-    refreshing, 
-    fetchVideos, 
-    updateVideoTitle, 
-    deleteVideo, 
-    getVideoStats 
-  } = useVideoLibrary();
-  
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -55,12 +64,28 @@ export default function VideosTab() {
     }
   }, [user]);
 
+  const loadVideos = async () => {
+    try {
+      setLoading(true);
+      
+      // Use the video library hook instead of duplicating logic
+      await fetchVideos();
+    } catch (error) {
+      console.error('Failed to load videos:', error);
+      Alert.alert('Error', 'Failed to load videos. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onRefresh = async () => {
+    setRefreshing(true);
     await fetchVideos();
+    setRefreshing(false);
   };
 
   const filteredVideos = videos.filter((video) => {
-    const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = video.activity_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          video.activity_type?.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (!matchesSearch) return false;
@@ -78,7 +103,11 @@ export default function VideosTab() {
     if (video.video_url) {
       router.push({
         pathname: '/video-preview',
-        params: { videoUrl: video.video_url, videoId: video.id },
+        params: { 
+          videoUrl: video.video_url, 
+          videoId: video.id,
+          runId: video.id
+        },
       });
     } else {
       Alert.alert('Video Unavailable', 'This video failed to generate or is not available.');
@@ -180,7 +209,7 @@ export default function VideosTab() {
       <VideoPlayer
         videoUrl={item.video_url}
         thumbnail={item.thumbnail_url}
-        title={item.title}
+        title={item.script_content || item.activity_name}
         activityType={item.activity_type}
         onPress={() => handleVideoPress(item)}
         style={styles.videoPlayer}
@@ -197,7 +226,8 @@ export default function VideosTab() {
           </TouchableOpacity>
         </View>
         <Text style={styles.videoStats}>
-          {item.duration ? `${Math.floor(item.duration / 60)} min • ` : ''}
+          {item.distance_km ? `${item.distance_km.toFixed(1)}km • ` : ''}
+          {item.calories_burned ? `${item.calories_burned} cal • ` : ''}
           {formatDate(item.created_at)}
         </Text>
       </View>
@@ -240,7 +270,7 @@ export default function VideosTab() {
 
       {/* Subtitle */}
       <Text style={styles.subtitle}>
-        {getVideoStats().totalVideos} video{getVideoStats().totalVideos !== 1 ? 's' : ''} celebrating your fitness journey
+        {videos.length} video{videos.length !== 1 ? 's' : ''} celebrating your fitness journey
       </Text>
 
       {/* Search and Filters */}

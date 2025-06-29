@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'rea
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useEnhancedVideoGeneration } from '@/hooks/useEnhancedVideoGeneration';
-import { Clock, Target, Zap, Video, Share2, Home } from 'lucide-react-native';
+import { Clock, Target, Zap, Video, Share2, Chrome as Home } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface RunData {
