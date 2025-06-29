@@ -24,6 +24,7 @@ interface VideoGenerationState {
   currentStep: 'initializing' | 'processing' | 'finalizing' | 'completed' | 'failed';
   elapsedTime: number;
   estimatedTimeRemaining: number;
+  isPeakUsage: boolean;
 }
 
 interface VideoCustomization {
@@ -45,7 +46,8 @@ export function useEnhancedVideoGeneration() {
     thumbnailUrl: null,
     currentStep: 'initializing',
     elapsedTime: 0,
-    estimatedTimeRemaining: 180 // 3 minutes default estimate
+    estimatedTimeRemaining: 300, // 5 minutes default estimate for peak usage
+    isPeakUsage: false
   });
 
   const startTimeRef = useRef<number>(0);
@@ -57,27 +59,35 @@ export function useEnhancedVideoGeneration() {
 
     const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
     const remaining = Math.max(0, state.estimatedTimeRemaining - elapsed);
+    
+    // Detect peak usage if processing takes longer than expected
+    const isPeakUsage = elapsed > 180; // 3 minutes indicates peak usage
 
     setState(prev => ({
       ...prev,
       elapsedTime: elapsed,
       estimatedTimeRemaining: remaining,
-      progress: getProgressMessage(elapsed, prev.currentStep)
+      progress: getProgressMessage(elapsed, prev.currentStep, isPeakUsage),
+      isPeakUsage
     }));
   }, [state.isGenerating, state.estimatedTimeRemaining]);
 
-  const getProgressMessage = (elapsedSeconds: number, step: string): string => {
+  const getProgressMessage = (elapsedSeconds: number, step: string, isPeakUsage: boolean): string => {
     if (step === 'initializing') {
       return 'Initializing video generation...';
     } else if (step === 'processing') {
       if (elapsedSeconds < 30) {
-        return 'Processing your achievement data...';
+        return 'Starting video generation...';
       } else if (elapsedSeconds < 90) {
-        return 'AI is creating your personalized video...';
+        return 'Added to processing queue...';
       } else if (elapsedSeconds < 180) {
-        return 'Almost ready! Finalizing your video...';
+        return 'Waiting in queue - this is normal during peak hours...';
+      } else if (elapsedSeconds < 300) {
+        return isPeakUsage ? 'Still queued - experiencing high demand...' : 'Processing your video - AI generation in progress...';
+      } else if (elapsedSeconds < 450) {
+        return 'Processing your video - AI generation in progress...';
       } else {
-        return 'Taking longer than usual, please wait...';
+        return 'Almost complete - finalizing your achievement video...';
       }
     } else if (step === 'finalizing') {
       return 'Finalizing your video...';
@@ -124,7 +134,10 @@ export function useEnhancedVideoGeneration() {
         error: configStatus.message,
         videoUrl: null,
         thumbnailUrl: null,
-        currentStep: 'failed'
+        currentStep: 'failed',
+        elapsedTime: 0,
+        estimatedTimeRemaining: 600, // 10 minutes for enhanced timeout
+        isPeakUsage: false
       });
       throw new Error(configStatus.message);
     }
@@ -138,7 +151,8 @@ export function useEnhancedVideoGeneration() {
       thumbnailUrl: null,
       currentStep: 'initializing',
       elapsedTime: 0,
-      estimatedTimeRemaining: 180
+      estimatedTimeRemaining: 600, // 10 minutes for enhanced timeout
+      isPeakUsage: false
     }));
 
     try {
@@ -177,7 +191,8 @@ export function useEnhancedVideoGeneration() {
           thumbnailUrl: result.thumbnailUrl || null,
           currentStep: 'completed',
           elapsedTime: result.total_time || 0,
-          estimatedTimeRemaining: 0
+          estimatedTimeRemaining: 0,
+          isPeakUsage: result.total_time ? result.total_time > 180 : false
         }));
 
         return {
@@ -201,7 +216,8 @@ export function useEnhancedVideoGeneration() {
         thumbnailUrl: null,
         currentStep: 'failed',
         elapsedTime: 0,
-        estimatedTimeRemaining: 180
+        estimatedTimeRemaining: 600,
+        isPeakUsage: false
       }));
 
       throw error;
@@ -211,8 +227,8 @@ export function useEnhancedVideoGeneration() {
   const getEnhancedErrorMessage = (error: any): string => {
     const errorMessage = error instanceof Error ? error.message : 'Video generation failed';
     
-    if (errorMessage.includes('timeout')) {
-      return 'Video generation is taking longer than expected. This sometimes happens during peak usage. You can try again or check back later.';
+    if (errorMessage.includes('timeout') || errorMessage.includes('peak usage')) {
+      return 'Video generation is taking longer than expected due to high demand. This is normal during peak usage periods. Try again during off-peak hours (early morning/late evening) for faster processing.';
     } else if (errorMessage.includes('API key')) {
       return 'Video service configuration issue. Please contact support.';
     } else if (errorMessage.includes('replica')) {
@@ -252,7 +268,8 @@ export function useEnhancedVideoGeneration() {
       thumbnailUrl: null,
       currentStep: 'initializing',
       elapsedTime: 0,
-      estimatedTimeRemaining: 180
+      estimatedTimeRemaining: 600,
+      isPeakUsage: false
     }));
 
     if (progressIntervalRef.current) {
@@ -266,7 +283,7 @@ export function useEnhancedVideoGeneration() {
     if (state.currentStep === 'failed') return 0;
     
     // Calculate progress based on elapsed time and estimated duration
-    const maxEstimatedTime = 180; // 3 minutes
+    const maxEstimatedTime = state.isPeakUsage ? 600 : 300; // 10 minutes for peak usage, 5 minutes normal
     const timeProgress = Math.min((state.elapsedTime / maxEstimatedTime) * 100, 95);
     
     switch (state.currentStep) {
@@ -289,6 +306,9 @@ export function useEnhancedVideoGeneration() {
 
   const formatEstimatedTimeRemaining = (): string => {
     if (state.estimatedTimeRemaining <= 0) return 'Almost done...';
+    if (state.isPeakUsage && state.estimatedTimeRemaining > 300) {
+      return 'Peak usage - may take 5-10 minutes';
+    }
     const minutes = Math.floor(state.estimatedTimeRemaining / 60);
     const seconds = state.estimatedTimeRemaining % 60;
     return `~${minutes}:${seconds.toString().padStart(2, '0')} remaining`;
