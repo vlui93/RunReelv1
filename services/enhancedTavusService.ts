@@ -134,16 +134,7 @@ class EnhancedTavusService {
         script: script,
         video_name: `activity_${achievement.id}_${Date.now()}`,
         callback_url: null,
-        properties: {
-          ...videoConfig,
-          achievement_data: {
-            type: achievement.achievement_type,
-            category: achievement.category,
-            value: achievement.value,
-            description: achievement.description,
-            activity_id: achievement.id
-          }
-        }
+        ...videoConfig
       };
 
       const response = await fetch(`${this.baseUrl}/videos`, {
