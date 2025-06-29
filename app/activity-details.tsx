@@ -552,7 +552,7 @@ export default function ActivityDetailsScreen() {
             <Video size={48} color="#3B82F6" />
             <Text style={styles.generatingTitle}>Generating Your Video...</Text>
             <Text style={styles.generatingProgress}>{progress}</Text>
-            {state.isPeakUsage && (
+            {isPeakUsage && (
               <View style={styles.peakUsageWarning}>
                 <Text style={styles.peakUsageText}>⏰ Peak Usage Detected</Text>
                 <Text style={styles.peakUsageSubtext}>
