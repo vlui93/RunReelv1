@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
 
 interface Achievement {
@@ -35,7 +36,38 @@ export function useAchievements() {
 
   useEffect(() => {
     if (user) {
-      // Mock achievements for now
+      fetchAchievements();
+    } else {
+      setAchievements([]);
+      setStats({
+        totalAchievements: 0,
+        personalRecords: 0,
+        milestones: 0,
+        streaks: 0,
+        unprocessedCount: 0,
+        recentAchievements: []
+      });
+      setLoading(false);
+    }
+  }, [user]);
+
+  const fetchAchievements = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('achievements')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setAchievements(data || []);
+      calculateStats(data || []);
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+      // Fall back to mock data if database fails
       const mockAchievements: Achievement[] = [
         {
           id: '1',
@@ -56,24 +88,37 @@ export function useAchievements() {
           created_at: new Date(Date.now() - 86400000).toISOString(),
         },
       ];
-
       setAchievements(mockAchievements);
       calculateStats(mockAchievements);
-      setLoading(false);
-    } else {
-      setAchievements([]);
-      setStats({
-        totalAchievements: 0,
-        personalRecords: 0,
-        milestones: 0,
-        streaks: 0,
-        unprocessedCount: 0,
-        recentAchievements: []
-      });
+    } finally {
       setLoading(false);
     }
-  }, [user]);
+  };
 
+  const markAchievementAsProcessed = async (achievementId: string) => {
+    try {
+      const { error } = await supabase
+        .from('achievements')
+        .update({ is_processed: true })
+        .eq('id', achievementId)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setAchievements(prev => prev.map(a => 
+        a.id === achievementId ? { ...a, is_processed: true } : a
+      ));
+      
+      // Recalculate stats
+      const updatedAchievements = achievements.map(a => 
+        a.id === achievementId ? { ...a, is_processed: true } : a
+      );
+      calculateStats(updatedAchievements);
+    } catch (error) {
+      console.error('Error marking achievement as processed:', error);
+    }
+  };
   const calculateStats = (achievementData: Achievement[]) => {
     const totalAchievements = achievementData.length;
     const personalRecords = achievementData.filter(a => a.achievement_type === 'personal_record').length;
@@ -96,5 +141,7 @@ export function useAchievements() {
     achievements,
     loading,
     stats,
+    markAchievementAsProcessed,
+    fetchAchievements,
   };
 }

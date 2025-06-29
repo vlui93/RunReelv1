@@ -110,7 +110,8 @@ class EnhancedTavusService {
         throw new Error('User not authenticated');
       }
 
-      const script = this.generateActivityScript(activity);
+      // Use Gen Z optimized script instead of basic script
+      const script = GenZScriptGenerator.generateScript(activity, false, false);
       
       // Create video generation record with ONLY existing columns
       const videoGenRecord = {
@@ -165,6 +166,17 @@ class EnhancedTavusService {
           })
           .eq('id', videoGeneration.id);
 
+        // Generate thumbnail and update activity record
+        const thumbnail = await ThumbnailService.generateThumbnail(pollResult.videoUrl);
+        
+        // Update activity record with video URL and Gen Z script for videos tab
+        await supabase
+          .from('manual_activities')
+          .update({
+            video_url: pollResult.videoUrl,
+            script_content: script
+          })
+          .eq('id', activity.id);
         console.log('✅ Video generation completed successfully!');
         return {
           success: true,
@@ -474,3 +486,5 @@ export const enhancedTavusService = new EnhancedTavusService();
 
 // Import supabase client
 import { supabase } from '@/lib/supabase';
+import { GenZScriptGenerator } from '@/services/genZScriptGenerator';
+import { ThumbnailService } from '@/services/thumbnailService';

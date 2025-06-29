@@ -5,45 +5,42 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   RefreshControl,
   Modal,
   TextInput,
   Share,
   Platform,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoLibrary } from '@/hooks/useVideoLibrary';
-import { Video, Play, MoveVertical as MoreVertical, CreditCard as Edit3, Trash2, Share2, Download, Calendar, Clock, Target, Search, Filter, Grid2x2 as Grid, List, X, Check } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import VideoThumbnailGenerator from '@/components/VideoThumbnailGenerator';
+import { Video, Play, MoveVertical as MoreVertical, CreditCard as Edit3, Trash2, Share2, Search, Filter, Grid2x2 as Grid, List, X, Check, Calendar, Clock, Target } from 'lucide-react-native';
+import { VideoPlayer } from '@/components/VideoPlayer';
+import { ThumbnailService } from '@/services/thumbnailService';
+import { GenZScriptGenerator } from '@/services/genZScriptGenerator';
 
 interface VideoItem {
   id: string;
-  title: string;
-  thumbnail_url?: string;
   video_url: string;
+  activity_name: string;
+  activity_type: string;
+  distance_km?: number;
+  calories_burned?: number;
+  duration_seconds: number;
   created_at: string;
-  duration?: number;
-  activity_type?: string;
-  status: 'completed' | 'processing' | 'failed';
+  thumbnail_url?: string;
   script_content?: string;
+  status?: 'completed' | 'processing' | 'failed';
 }
 
 export default function VideosTab() {
   const { user } = useAuth();
-  const {
-    videos,
-    loading,
-    refreshing,
-    fetchVideos,
-    updateVideoTitle,
-    deleteVideo,
-    getVideoStats,
-  } = useVideoLibrary();
-
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -63,12 +60,70 @@ export default function VideosTab() {
 
   useEffect(() => {
     if (user) {
-      fetchVideos();
+      loadVideos();
     }
   }, [user]);
 
+  const loadVideos = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('manual_activities')
+        .select(`
+          id,
+          activity_name,
+          activity_type,
+          distance_km,
+          calories_burned,
+          duration_seconds,
+          created_at,
+          video_url,
+          script_content
+        `)
+        .not('video_url', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Generate thumbnails and update scripts for each video
+      const videosWithEnhancements = await Promise.all(
+        (data || []).map(async (video) => {
+          const thumbnail = video.video_url 
+            ? await ThumbnailService.generateThumbnail(video.video_url)
+            : null;
+
+          // Update script if it's not Gen Z optimized
+          const updatedScript = video.script_content && GenZScriptGenerator.isGenZOptimized(video.script_content)
+            ? video.script_content 
+            : GenZScriptGenerator.generateScript(video);
+
+          return {
+            ...video,
+            thumbnail_url: thumbnail,
+            script_content: updatedScript,
+            status: 'completed' as const
+          };
+        })
+      );
+
+      setVideos(videosWithEnhancements);
+    } catch (error) {
+      console.error('Failed to load videos:', error);
+      Alert.alert('Error', 'Failed to load videos. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadVideos();
+    setRefreshing(false);
+  };
+
   const filteredVideos = videos.filter((video) => {
-    const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = video.activity_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          video.activity_type?.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (!matchesSearch) return false;
@@ -83,17 +138,15 @@ export default function VideosTab() {
   });
 
   const handleVideoPress = (video: VideoItem) => {
-    if (video.status === 'completed' && video.video_url) {
+    if (video.video_url) {
       router.push({
         pathname: '/video-preview',
         params: { 
           videoUrl: video.video_url, 
           videoId: video.id,
-          runId: video.id // Add runId for compatibility
+          runId: video.id
         },
       });
-    } else if (video.status === 'processing') {
-      Alert.alert('Video Processing', 'This video is still being generated. Please check back later.');
     } else {
       Alert.alert('Video Unavailable', 'This video failed to generate or is not available.');
     }
@@ -106,7 +159,7 @@ export default function VideosTab() {
 
   const handleRename = () => {
     if (selectedVideo) {
-      setNewTitle(selectedVideo.title);
+      setNewTitle(selectedVideo.activity_name);
       setShowOptionsModal(false);
       setShowRenameModal(true);
     }
@@ -115,11 +168,17 @@ export default function VideosTab() {
   const handleRenameConfirm = async () => {
     if (selectedVideo && newTitle.trim()) {
       try {
-        await updateVideoTitle(selectedVideo.id, newTitle.trim());
+        const { error } = await supabase
+          .from('manual_activities')
+          .update({ activity_name: newTitle.trim() })
+          .eq('id', selectedVideo.id);
+
+        if (error) throw error;
+
         setShowRenameModal(false);
         setSelectedVideo(null);
         setNewTitle('');
-        await fetchVideos(); // Refresh the list
+        await loadVideos();
       } catch (error) {
         Alert.alert('Error', 'Failed to rename video. Please try again.');
       }
@@ -130,7 +189,7 @@ export default function VideosTab() {
     if (selectedVideo) {
       Alert.alert(
         'Delete Video',
-        `Are you sure you want to delete "${selectedVideo.title}"? This action cannot be undone.`,
+        `Are you sure you want to delete "${selectedVideo.activity_name}"? This action cannot be undone.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -138,10 +197,16 @@ export default function VideosTab() {
             style: 'destructive',
             onPress: async () => {
               try {
-                await deleteVideo(selectedVideo.id);
+                const { error } = await supabase
+                  .from('manual_activities')
+                  .update({ video_url: null, script_content: null })
+                  .eq('id', selectedVideo.id);
+
+                if (error) throw error;
+
                 setShowOptionsModal(false);
                 setSelectedVideo(null);
-                await fetchVideos(); // Refresh the list
+                await loadVideos();
               } catch (error) {
                 Alert.alert('Error', 'Failed to delete video. Please try again.');
               }
@@ -156,7 +221,7 @@ export default function VideosTab() {
     if (selectedVideo && selectedVideo.video_url) {
       try {
         await Share.share({
-          message: `Check out my achievement video: ${selectedVideo.title}`,
+          message: `Check out my achievement video: ${selectedVideo.script_content || selectedVideo.activity_name}`,
           url: selectedVideo.video_url,
         });
         setShowOptionsModal(false);
@@ -177,47 +242,47 @@ export default function VideosTab() {
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
     });
   };
 
-  const formatDuration = (seconds?: number): string => {
-    if (!seconds) return '--:--';
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'completed':
-        return '#10B981';
-      case 'processing':
-        return '#F59E0B';
-      case 'failed':
-        return '#EF4444';
-      default:
-        return '#6B7280';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Check size={16} color="#10B981" />;
-      case 'processing':
-        return <Clock size={16} color="#F59E0B" />;
-      case 'failed':
-        return <X size={16} color="#EF4444" />;
-      default:
-        return <Video size={16} color="#6B7280" />;
-    }
-  };
-
-  const stats = getVideoStats();
+  const renderVideoItem = ({ item }: { item: VideoItem }) => (
+    <View style={styles.videoItem}>
+      <VideoPlayer
+        videoUrl={item.video_url}
+        thumbnail={item.thumbnail_url}
+        title={item.script_content || item.activity_name}
+        activityType={item.activity_type}
+        onPress={() => handleVideoPress(item)}
+        style={styles.videoPlayer}
+      />
+      
+      <View style={styles.videoMeta}>
+        <View style={styles.videoMetaHeader}>
+          <Text style={styles.activityType}>{item.activity_type.toUpperCase()}</Text>
+          <TouchableOpacity
+            style={styles.optionsButton}
+            onPress={() => handleVideoOptions(item)}
+          >
+            <MoreVertical size={16} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.videoStats}>
+          {item.distance_km ? `${item.distance_km.toFixed(1)}km • ` : ''}
+          {item.calories_burned ? `${item.calories_burned} cal • ` : ''}
+          {formatDate(item.created_at)}
+        </Text>
+      </View>
+    </View>
+  );
 
   if (!user) {
     return (
@@ -238,7 +303,7 @@ export default function VideosTab() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Video Library</Text>
+        <Text style={styles.title}>🎬 Your Achievement Videos</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.viewModeButton}
@@ -253,31 +318,10 @@ export default function VideosTab() {
         </View>
       </View>
 
-      {/* Stats Overview */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Video size={20} color="#3B82F6" />
-            <Text style={styles.statValue}>{stats.totalVideos}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Check size={20} color="#10B981" />
-            <Text style={styles.statValue}>{stats.completedVideos}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Clock size={20} color="#F59E0B" />
-            <Text style={styles.statValue}>{stats.processingVideos}</Text>
-            <Text style={styles.statLabel}>Processing</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Calendar size={20} color="#8B5CF6" />
-            <Text style={styles.statValue}>{stats.thisWeek}</Text>
-            <Text style={styles.statLabel}>This Week</Text>
-          </View>
-        </View>
-      </View>
+      {/* Subtitle */}
+      <Text style={styles.subtitle}>
+        {videos.length} video{videos.length !== 1 ? 's' : ''} celebrating your fitness journey
+      </Text>
 
       {/* Search and Filters */}
       <View style={styles.searchContainer}>
@@ -317,137 +361,32 @@ export default function VideosTab() {
       </View>
 
       {/* Videos List */}
-      <ScrollView
-        style={styles.videosList}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchVideos} />}
-        contentContainerStyle={styles.videosContent}
-      >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <Video size={48} color="#9CA3AF" />
-            <Text style={styles.loadingText}>Loading videos...</Text>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading your achievement videos...</Text>
           </View>
         ) : filteredVideos.length > 0 ? (
-          <View style={[styles.videosGrid, viewMode === 'list' && styles.videosList]}>
-            {filteredVideos.map((video) => (
-              <TouchableOpacity
-                key={video.id}
-                style={[
-                  styles.videoCard,
-                  viewMode === 'list' && styles.videoCardList,
-                ]}
-                onPress={() => handleVideoPress(video)}
-                activeOpacity={0.7}
-              >
-                {/* Thumbnail */}
-                <View style={[styles.thumbnailContainer, viewMode === 'list' && styles.thumbnailContainerList]}>
-                  {video.thumbnail_url && video.thumbnail_url.startsWith('thumbnail://') ? (
-                    <VideoThumbnailGenerator
-                      activityType={video.activity_type || 'Other'}
-                      activityName={video.title}
-                      distance={video.duration ? undefined : undefined} // We don't have distance in video data
-                      duration={video.duration || 0}
-                      calories={undefined} // We don't have calories in video data
-                      date={video.created_at}
-                      style={styles.thumbnail}
-                    />
-                  ) : video.thumbnail_url ? (
-                    <Image source={{ uri: video.thumbnail_url }} style={styles.thumbnail} />
-                  ) : (
-                    <LinearGradient
-                      colors={['#3B82F6', '#1D4ED8']}
-                      style={styles.thumbnailPlaceholder}
-                    >
-                      <Video size={viewMode === 'list' ? 20 : 32} color="#FFFFFF" />
-                    </LinearGradient>
-                  )}
-                  
-                  {/* Status Indicator */}
-                  {!video.thumbnail_url?.startsWith('thumbnail://') && (
-                    <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(video.status) }]}>
-                      {getStatusIcon(video.status)}
-                    </View>
-                  )}
-
-                  {/* Play Button Overlay */}
-                  {video.status === 'completed' && !video.thumbnail_url?.startsWith('thumbnail://') && (
-                    <View style={styles.playOverlay}>
-                      <View style={styles.playButton}>
-                        <Play size={viewMode === 'list' ? 12 : 16} color="#FFFFFF" />
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Duration */}
-                  {video.duration && !video.thumbnail_url?.startsWith('thumbnail://') && (
-                    <View style={styles.durationBadge}>
-                      <Text style={styles.durationText}>{formatDuration(video.duration)}</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Video Info */}
-                <View style={[styles.videoInfo, viewMode === 'list' && styles.videoInfoList]}>
-                  <Text style={[styles.videoTitle, viewMode === 'list' && styles.videoTitleList]} numberOfLines={viewMode === 'list' ? 1 : 2}>
-                    {video.title}
-                  </Text>
-                  
-                  <View style={styles.videoMeta}>
-                    <View style={styles.metaItem}>
-                      <Calendar size={12} color="#9CA3AF" />
-                      <Text style={styles.metaText}>{formatDate(video.created_at)}</Text>
-                    </View>
-                    
-                    {video.activity_type && (
-                      <View style={styles.metaItem}>
-                        <Target size={12} color="#9CA3AF" />
-                        <Text style={styles.metaText}>{video.activity_type}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {viewMode === 'list' && (
-                    <TouchableOpacity
-                      style={styles.optionsButton}
-                      onPress={() => handleVideoOptions(video)}
-                    >
-                      <MoreVertical size={20} color="#6B7280" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Options Button for Grid View */}
-                {viewMode === 'grid' && (
-                  <TouchableOpacity
-                    style={styles.optionsButtonGrid}
-                    onPress={() => handleVideoOptions(video)}
-                  >
-                    <MoreVertical size={20} color="#6B7280" />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <FlatList
+            data={filteredVideos}
+            renderItem={renderVideoItem}
+            keyExtractor={(item) => item.id}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContainer}
+            numColumns={viewMode === 'grid' ? 1 : 1}
+          />
         ) : (
           <View style={styles.emptyState}>
-            <Video size={64} color="#9CA3AF" />
-            <Text style={styles.emptyStateTitle}>No videos found</Text>
+            <Text style={styles.emptyIcon}>📹</Text>
+            <Text style={styles.emptyStateTitle}>No videos yet!</Text>
             <Text style={styles.emptyStateSubtitle}>
-              {searchQuery || selectedFilter !== 'all'
-                ? 'Try adjusting your search or filters'
-                : 'Generate your first achievement video by completing an activity'}
+              Complete workouts and generate AI videos to see them here
             </Text>
-            {!searchQuery && selectedFilter === 'all' && (
-              <TouchableOpacity
-                style={styles.createVideoButton}
-                onPress={() => router.push('/manual-entry')}
-              >
-                <Text style={styles.createVideoButtonText}>Log Activity</Text>
-              </TouchableOpacity>
-            )}
           </View>
         )}
-      </ScrollView>
 
       {/* Options Modal */}
       <Modal
@@ -459,7 +398,7 @@ export default function VideosTab() {
         <View style={styles.modalOverlay}>
           <View style={styles.optionsModal}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedVideo?.title}</Text>
+              <Text style={styles.modalTitle}>{selectedVideo?.activity_name}</Text>
               <TouchableOpacity onPress={() => setShowOptionsModal(false)}>
                 <X size={24} color="#6B7280" />
               </TouchableOpacity>
@@ -531,24 +470,24 @@ export default function VideosTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f8f9fa',
   },
   authContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f8f9fa',
     padding: 24,
   },
   authTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1a1a1a',
     marginTop: 16,
     marginBottom: 24,
   },
   authButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#007AFF',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -562,16 +501,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 16,
     paddingTop: 60,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingBottom: 4,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1F2937',
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   headerActions: {
     flexDirection: 'row',
@@ -580,70 +523,49 @@ const styles = StyleSheet.create({
   viewModeButton: {
     padding: 8,
   },
-  statsContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statCard: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-  },
   searchContainer: {
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#1a1a1a',
     marginLeft: 12,
   },
   filtersContainer: {
-    backgroundColor: '#FFFFFF',
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   filtersList: {
     paddingHorizontal: 24,
   },
   filterButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 12,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   filterButtonSelected: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#007AFF',
   },
   filterButtonText: {
     fontSize: 14,
@@ -653,188 +575,75 @@ const styles = StyleSheet.create({
   filterButtonTextSelected: {
     color: '#FFFFFF',
   },
-  videosList: {
-    flex: 1,
-  },
-  videosContent: {
-    padding: 16,
-  },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 48,
+    alignItems: 'center',
   },
   loadingText: {
+    marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
-    marginTop: 16,
+    color: '#666',
   },
-  videosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  listContainer: {
+    padding: 16,
   },
-  videoCard: {
+  videoItem: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    width: '48%',
-    position: 'relative',
-  },
-  videoCardList: {
-    width: '100%',
-    flexDirection: 'row',
-    padding: 12,
-  },
-  thumbnailContainer: {
-    position: 'relative',
-    aspectRatio: 16 / 9,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  thumbnailContainerList: {
-    width: 120,
-    height: 68,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  thumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  thumbnailPlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusIndicator: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  playOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  playButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  durationBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  durationText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  videoInfo: {
-    padding: 12,
-  },
-  videoInfoList: {
-    flex: 1,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-  },
-  videoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  videoTitleList: {
-    fontSize: 16,
-    marginBottom: 4,
+  videoPlayer: {
+    marginBottom: 0,
   },
   videoMeta: {
-    flexDirection: 'row',
-    gap: 12,
+    padding: 12,
   },
-  metaItem: {
+  videoMetaHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
   },
-  metaText: {
+  activityType: {
     fontSize: 12,
-    color: '#9CA3AF',
-    marginLeft: 4,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   optionsButton: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    padding: 8,
+    padding: 4,
   },
-  optionsButtonGrid: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 16,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+  videoStats: {
+    fontSize: 14,
+    color: '#666',
   },
   emptyState: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 48,
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyIcon: {
+    fontSize: 60,
+    marginBottom: 16,
   },
   emptyStateTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginTop: 16,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
     marginBottom: 8,
   },
   emptyStateSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#666',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 24,
-  },
-  createVideoButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  createVideoButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -859,7 +668,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1a1a1a',
     flex: 1,
     marginRight: 12,
   },
@@ -875,7 +684,7 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1F2937',
+    color: '#1a1a1a',
     marginLeft: 12,
   },
   deleteText: {
@@ -912,7 +721,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   confirmButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#007AFF',
   },
   cancelButtonText: {
     fontSize: 16,
