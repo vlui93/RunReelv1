@@ -36,11 +36,22 @@ interface VideoGenerationResult {
   thumbnailUrl?: string;
   videoId?: string;
   error?: string;
+  attempts_made?: number;
+  total_time?: number;
 }
 
 class EnhancedTavusService {
   private apiKey: string;
   private baseUrl = 'https://tavusapi.com/v2';
+  
+  // Enhanced polling configuration based on Tavus API requirements
+  private readonly POLLING_CONFIG = {
+    maxAttempts: 40,        // Increased from default 30 attempts
+    initialInterval: 3000,  // Start with 3 seconds
+    maxInterval: 15000,     // Cap at 15 seconds
+    backoffMultiplier: 1.2, // Progressive increase
+    totalTimeout: 300000    // 5 minutes total timeout (300 seconds)
+  };
 
   constructor() {
     this.apiKey = process.env.EXPO_PUBLIC_TAVUS_API_KEY || '';
@@ -68,21 +79,8 @@ class EnhancedTavusService {
     return scripts[Math.floor(Math.random() * scripts.length)];
   }
 
-  private getVideoConfig(format: string, customization?: VideoGenerationRequest['customization']) {
-    const baseConfig = {
-      square: { width: 1080, height: 1080, aspect_ratio: '1:1' },
-      vertical: { width: 1080, height: 1920, aspect_ratio: '9:16' },
-      horizontal: { width: 1920, height: 1080, aspect_ratio: '16:9' }
-    };
-
-    return {
-      ...baseConfig[format as keyof typeof baseConfig],
-      voice_type: customization?.voiceType || 'motivational',
-      background_style: customization?.backgroundStyle || 'running_track',
-      music_style: customization?.musicStyle || 'energetic',
-      include_stats: customization?.includeStats !== false,
-      include_branding: customization?.includeBranding !== false
-    };
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   async generateActivityVideo(
@@ -98,6 +96,8 @@ class EnhancedTavusService {
     }
 
     try {
+      console.log('🎬 Starting enhanced video generation process...');
+      
       // Verify user authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
@@ -105,19 +105,16 @@ class EnhancedTavusService {
       }
 
       const script = this.generateActivityScript(activity);
-      const videoConfig = this.getVideoConfig(format, customization);
       
       // Create video generation record with ONLY existing columns
       const videoGenRecord = {
-        user_id: user.id,                    // ✅ EXISTS in schema
-        run_id: activity.id,                 // ✅ EXISTS in schema (references manual_activities)
-        status: 'pending' as const,          // ✅ EXISTS in schema
-        script_content: script,              // ✅ EXISTS in schema
-        // ❌ REMOVED: achievement_id, template_id, video_format, generation_config
-        // These columns don't exist in the actual schema
+        user_id: user.id,
+        run_id: activity.id,
+        status: 'pending' as const,
+        script_content: script,
       };
 
-      console.log('📝 Creating video generation record with correct schema:', videoGenRecord);
+      console.log('📝 Creating video generation record...');
 
       const { data: videoGeneration, error: insertError } = await supabase
         .from('video_generations')
@@ -130,81 +127,49 @@ class EnhancedTavusService {
         throw new Error(`Failed to create video generation record: ${insertError.message}`);
       }
 
-      console.log('✅ Video generation record created:', videoGeneration);
+      console.log('✅ Video generation record created:', videoGeneration.id);
 
-      // Generate video using Tavus API
-      // ✅ CORRECT: Only use valid Tavus API fields
-      const payload = {
-        replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
-        replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
-        script: script,
-        video_name: `activity_${activity.id}_${Date.now()}`
-        // ❌ REMOVED: callback_url: null (cannot be null if included)
-        // ❌ REMOVED: videoConfig (contains invalid fields)
-      };
-
-      console.log('🎬 Generating video with Tavus API...', { 
-        activityType: activity.activity_type,
-        format,
-        scriptLength: script.length 
-      });
-
-      // Tavus API v2 only supports: replica_id, script, video_name, background_url
-      // All other fields (voice_type, include_stats, etc.) cause 400 errors
-      console.log('📤 Tavus API payload (valid fields only):', payload);
-
-      const response = await fetch(`${this.baseUrl}/videos`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Tavus API Error:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
-        throw new Error(`Tavus API error: ${response.status} ${response.statusText} - ${errorText}`);
+      // Step 1: Initiate video generation with Tavus API
+      const initResult = await this.initiateVideoGeneration(activity, script);
+      if (!initResult.success) {
+        throw new Error(initResult.error);
       }
 
-      const data = await response.json();
-      console.log('✅ Tavus video generation started:', data);
-
-      // Update video generation record with Tavus job ID
+      // Update record with Tavus job ID
       await supabase
         .from('video_generations')
         .update({
-          tavus_job_id: data.video_id,
+          tavus_job_id: initResult.video_id,
           status: 'processing',
         })
         .eq('id', videoGeneration.id);
 
-      // Poll for completion
-      const completedVideo = await this.pollVideoCompletion(data.video_id, 30, 3000);
+      console.log('🔄 Starting enhanced polling for video completion...');
 
-      if (completedVideo.status === 'completed' && completedVideo.video_url) {
+      // Step 2: Enhanced polling with progressive backoff
+      const pollResult = await this.pollVideoCompletionEnhanced(initResult.video_id);
+      
+      if (pollResult.success && pollResult.video_url) {
         // Update records with final video URL
         await supabase
           .from('video_generations')
           .update({
             status: 'completed',
-            video_url: completedVideo.video_url,
+            video_url: pollResult.video_url,
           })
           .eq('id', videoGeneration.id);
 
+        console.log('✅ Video generation completed successfully!');
         return {
           success: true,
-          videoUrl: completedVideo.video_url,
-          thumbnailUrl: completedVideo.thumbnail_url,
-          videoId: videoGeneration.id
+          videoUrl: pollResult.video_url,
+          thumbnailUrl: pollResult.thumbnail_url,
+          videoId: videoGeneration.id,
+          attempts_made: pollResult.attempts_made,
+          total_time: pollResult.total_time
         };
       } else {
-        throw new Error('Video generation failed - no video URL returned');
+        throw new Error(pollResult.error || 'Video generation failed - no video URL returned');
       }
 
     } catch (error) {
@@ -232,6 +197,148 @@ class EnhancedTavusService {
         error: error instanceof Error ? error.message : 'Video generation failed'
       };
     }
+  }
+
+  private async initiateVideoGeneration(activity: ActivityData, script: string) {
+    try {
+      // Only use valid Tavus API fields to avoid 400 errors
+      const payload = {
+        replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
+        script: script,
+        video_name: `activity_${activity.id}_${Date.now()}`
+      };
+
+      console.log('📤 Tavus API request (valid fields only):', {
+        replica_id: payload.replica_id ? 'SET' : 'MISSING',
+        script_length: payload.script.length,
+        video_name: payload.video_name
+      });
+
+      const response = await fetch(`${this.baseUrl}/videos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Tavus API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Tavus API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Tavus video generation initiated:', data.video_id);
+
+      return {
+        success: true,
+        video_id: data.video_id,
+        status: data.status || 'pending'
+      };
+
+    } catch (error) {
+      console.error('❌ Error initiating video generation:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to initiate video generation'
+      };
+    }
+  }
+
+  private async pollVideoCompletionEnhanced(videoId: string): Promise<VideoGenerationResult> {
+    console.log(`🔄 Starting enhanced polling for video ${videoId}...`);
+    
+    let attempts = 0;
+    let currentInterval = this.POLLING_CONFIG.initialInterval;
+    const startTime = Date.now();
+
+    while (attempts < this.POLLING_CONFIG.maxAttempts) {
+      const elapsedTime = Date.now() - startTime;
+      
+      // Check total timeout (5 minutes)
+      if (elapsedTime > this.POLLING_CONFIG.totalTimeout) {
+        console.error(`⏰ Video generation timeout after ${Math.round(elapsedTime / 1000)} seconds`);
+        return {
+          success: false,
+          error: `Video generation timeout after ${Math.round(elapsedTime / 1000)} seconds. This sometimes happens during peak usage. Please try again or check your Tavus dashboard.`,
+          video_id: videoId,
+          attempts_made: attempts,
+          total_time: Math.round(elapsedTime / 1000)
+        };
+      }
+
+      try {
+        attempts++;
+        console.log(`📊 Polling attempt ${attempts}/${this.POLLING_CONFIG.maxAttempts} after ${Math.round(elapsedTime / 1000)}s`);
+
+        // Check video status
+        const statusResult = await this.getVideoStatus(videoId);
+        
+        console.log(`📈 Video status: ${statusResult.status}`);
+
+        // Handle completion states
+        if (statusResult.status === 'completed' && statusResult.video_url) {
+          console.log(`🎯 Video generation completed successfully!`);
+          return {
+            success: true,
+            video_id: videoId,
+            video_url: statusResult.video_url,
+            thumbnail_url: statusResult.thumbnail_url,
+            attempts_made: attempts,
+            total_time: Math.round(elapsedTime / 1000)
+          };
+        }
+
+        if (statusResult.status === 'failed' || statusResult.status === 'error') {
+          console.error(`❌ Video generation failed with status: ${statusResult.status}`);
+          return {
+            success: false,
+            error: `Video generation failed with status: ${statusResult.status}`,
+            video_id: videoId,
+            attempts_made: attempts,
+            total_time: Math.round(elapsedTime / 1000)
+          };
+        }
+
+        // Progressive backoff before next attempt
+        if (attempts < this.POLLING_CONFIG.maxAttempts) {
+          console.log(`⏳ Waiting ${Math.round(currentInterval / 1000)}s before next attempt...`);
+          await this.sleep(currentInterval);
+          currentInterval = Math.min(
+            currentInterval * this.POLLING_CONFIG.backoffMultiplier,
+            this.POLLING_CONFIG.maxInterval
+          );
+        }
+
+      } catch (error) {
+        console.error(`❌ Polling error on attempt ${attempts}:`, error);
+        if (attempts >= this.POLLING_CONFIG.maxAttempts) {
+          return {
+            success: false,
+            error: `Polling failed after ${attempts} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            video_id: videoId,
+            attempts_made: attempts
+          };
+        }
+        // Wait before retrying on error
+        await this.sleep(currentInterval);
+      }
+    }
+
+    console.error(`❌ Maximum polling attempts exceeded (${this.POLLING_CONFIG.maxAttempts})`);
+    return {
+      success: false,
+      error: `Video generation timeout - exceeded maximum polling attempts (${this.POLLING_CONFIG.maxAttempts}). Video may still be processing. Check your Tavus dashboard or try again later.`,
+      video_id: videoId,
+      attempts_made: attempts,
+      suggestion: "Video may still be processing. Check Tavus dashboard manually or try again in a few minutes."
+    };
   }
 
   async getVideoStatus(videoId: string): Promise<TavusResponse> {
@@ -266,12 +373,13 @@ class EnhancedTavusService {
     }
   }
 
+  // Legacy method for backward compatibility
   async pollVideoCompletion(
     videoId: string, 
     maxAttempts: number = 30,
     intervalMs: number = 3000
   ): Promise<TavusResponse> {
-    console.log(`🔄 Polling video completion for ${videoId}...`);
+    console.log(`🔄 Using legacy polling for video ${videoId}...`);
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -285,7 +393,7 @@ class EnhancedTavusService {
         }
 
         if (attempt < maxAttempts - 1) {
-          await new Promise(resolve => setTimeout(resolve, intervalMs));
+          await this.sleep(intervalMs);
         }
       } catch (error) {
         console.error(`❌ Polling attempt ${attempt + 1} failed:`, error);
