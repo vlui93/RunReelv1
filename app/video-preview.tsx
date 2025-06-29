@@ -9,11 +9,13 @@ import {
   Share,
   Platform,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+  Bookmark,
+  Video
 import { ArrowLeft, Play, Pause, Volume2, VolumeX, MoveHorizontal as MoreHorizontal, Download, Heart, MessageCircle, Bookmark } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { Linking } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -96,7 +98,13 @@ export default function VideoPreviewScreen() {
   }, [showControls, isPlaying]);
 
   const fetchRunData = async () => {
-    if (!runId) return;
+    if (!user) return;
+    
+    // If no runId provided, skip fetching run data (video-only mode)
+    if (!runId) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
@@ -224,94 +232,160 @@ export default function VideoPreviewScreen() {
       {/* Video Background */}
       <View style={styles.videoContainer}>
         {/* Placeholder for actual video player */}
-        <View style={styles.videoPlaceholder}>
+        {videoUrl ? (
+          <View style={styles.actualVideoContainer}>
+            {/* For web, we can use a video element */}
+            {Platform.OS === 'web' ? (
+              <video
+                src={videoUrl}
+                controls
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+                poster={runData?.thumbnail_url}
+              />
+            ) : (
+              /* For mobile, show video placeholder with play button */
+              <View style={styles.videoPlaceholder}>
+                <LinearGradient
+                  colors={['#1F2937', '#374151']}
+                  style={styles.videoGradient}
+                >
+                  <TouchableOpacity 
+                    style={styles.mobilePlayButton}
+                    onPress={() => {
+                      // On mobile, open video in external player
+                      if (videoUrl) {
+                        Linking.openURL(videoUrl);
+                      }
+                    }}
+                  >
+                    <Play size={48} color="#FFFFFF" />
+                    <Text style={styles.mobilePlayText}>Tap to play video</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Video Stats Overlay */}
+                  {runData && (
+                    <View style={styles.statsOverlay}>
+                      <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{formatDistance(runData.distance)}</Text>
+                        <Text style={styles.statLabel}>Distance</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{formatTime(runData.duration)}</Text>
+                        <Text style={styles.statLabel}>Time</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Text style={styles.statValue}>
+                          {runData.average_pace ? formatPace(runData.average_pace) : '--:--'}
+                        </Text>
+                        <Text style={styles.statLabel}>min/km</Text>
+                      </View>
+                    </View>
+                  )}
+                </LinearGradient>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.videoPlaceholder}>
+            <LinearGradient
+              colors={['#1F2937', '#374151']}
+              style={styles.videoGradient}
+            >
+              <View style={styles.noVideoContainer}>
+                <Video size={48} color="#9CA3AF" />
+                <Text style={styles.noVideoText}>Video not available</Text>
+              </View>
+            </LinearGradient>
+          </View>
+        )}
+      </View>
+
+      {/* Alternative: Show video in a modal for better control */}
+      {Platform.OS === 'web' && videoUrl && (
+        <View style={styles.webVideoContainer}>
           <LinearGradient
             colors={['#1F2937', '#374151']}
             style={styles.videoGradient}
           >
-            {/* AI Avatar Placeholder */}
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>AI</Text>
-              </View>
-            </View>
-            
-            {/* Video Stats Overlay */}
-            {runData && (
-              <View style={styles.statsOverlay}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{formatDistance(runData.distance)}</Text>
-                  <Text style={styles.statLabel}>Distance</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{formatTime(runData.duration)}</Text>
-                  <Text style={styles.statLabel}>Time</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {runData.average_pace ? formatPace(runData.average_pace) : '--:--'}
-                  </Text>
-                  <Text style={styles.statLabel}>min/km</Text>
-                </View>
-              </View>
-            )}
+            <iframe
+              src={videoUrl}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                borderRadius: '12px',
+              }}
+              allow="autoplay; fullscreen"
+              allowFullScreen
+            />
           </LinearGradient>
         </View>
+      )}
 
         {/* Video Controls Overlay */}
-        <TouchableOpacity 
-          style={styles.videoTouchArea}
-          onPress={handleScreenTap}
-          activeOpacity={1}
-        >
-          {showControls && (
-            <View style={styles.controlsOverlay}>
-              {/* Top Controls */}
-              <View style={styles.topControls}>
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity 
+            style={styles.videoTouchArea}
+            onPress={handleScreenTap}
+            activeOpacity={1}
+          >
+            {showControls && (
+              <View style={styles.controlsOverlay}>
+                {/* Top Controls */}
+                <View style={styles.topControls}>
+                  <TouchableOpacity 
+                    style={styles.backButton}
+                    onPress={() => router.back()}
+                  >
+                    <ArrowLeft size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.muteButton}
+                    onPress={handleMuteToggle}
+                  >
+                    {isMuted ? (
+                      <VolumeX size={24} color="#FFFFFF" />
+                    ) : (
+                      <Volume2 size={24} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Center Play Button */}
                 <TouchableOpacity 
-                  style={styles.backButton}
-                  onPress={() => router.back()}
+                  style={styles.playButton}
+                  onPress={handlePlayPause}
                 >
-                  <ArrowLeft size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.muteButton}
-                  onPress={handleMuteToggle}
-                >
-                  {isMuted ? (
-                    <VolumeX size={24} color="#FFFFFF" />
-                  ) : (
-                    <Volume2 size={24} color="#FFFFFF" />
-                  )}
+                  <View style={styles.playButtonBackground}>
+                    {isPlaying ? (
+                      <Pause size={32} color="#FFFFFF" />
+                    ) : (
+                      <Play size={32} color="#FFFFFF" />
+                    )}
+                  </View>
                 </TouchableOpacity>
               </View>
-
-              {/* Center Play Button */}
-              <TouchableOpacity 
-                style={styles.playButton}
-                onPress={handlePlayPause}
-              >
-                <View style={styles.playButtonBackground}>
-                  {isPlaying ? (
-                    <Pause size={32} color="#FFFFFF" />
-                  ) : (
-                    <Play size={32} color="#FFFFFF" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+            )}
+          </TouchableOpacity>
+        )}
 
       {/* Bottom Content */}
       <View style={styles.bottomContent}>
         {/* Video Title */}
         <View style={styles.titleSection}>
-          <Text style={styles.videoTitle}>My Run Achievement</Text>
+          <Text style={styles.videoTitle}>
+            {runData ? `${runData.activity_name || 'My Achievement'}` : 'Achievement Video'}
+          </Text>
           <Text style={styles.videoSubtitle}>
-            AI-generated celebration of your running success
+            {runData ? 
+              `${runData.activity_type || 'Activity'} completed on ${formatDate(runData.created_at)}` :
+              'AI-generated celebration of your success'
+            }
           </Text>
         </View>
 
@@ -397,6 +471,41 @@ const styles = StyleSheet.create({
   },
   videoPlaceholder: {
     flex: 1,
+  },
+  actualVideoContainer: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  webVideoContainer: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  mobilePlayButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  mobilePlayText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  noVideoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  noVideoText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 12,
   },
   videoGradient: {
     flex: 1,

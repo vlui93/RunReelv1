@@ -85,7 +85,11 @@ export default function VideosTab() {
     if (video.status === 'completed' && video.video_url) {
       router.push({
         pathname: '/video-preview',
-        params: { videoUrl: video.video_url, videoId: video.id },
+        params: { 
+          videoUrl: video.video_url, 
+          videoId: video.id,
+          runId: video.id // Add runId for compatibility
+        },
       });
     } else if (video.status === 'processing') {
       Alert.alert('Video Processing', 'This video is still being generated. Please check back later.');
