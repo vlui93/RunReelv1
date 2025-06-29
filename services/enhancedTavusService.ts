@@ -133,12 +133,14 @@ class EnhancedTavusService {
       console.log('✅ Video generation record created:', videoGeneration);
 
       // Generate video using Tavus API
+      // ✅ CORRECT: Only use valid Tavus API fields
       const payload = {
-        replica_id: 'default-replica', // In production, this would be user-specific
+        replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
+        replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
         script: script,
-        video_name: `activity_${activity.id}_${Date.now()}`,
-        callback_url: null,
-        ...videoConfig
+        video_name: `activity_${activity.id}_${Date.now()}`
+        // ❌ REMOVED: callback_url: null (cannot be null if included)
+        // ❌ REMOVED: videoConfig (contains invalid fields)
       };
 
       console.log('🎬 Generating video with Tavus API...', { 
@@ -146,6 +148,12 @@ class EnhancedTavusService {
         format,
         scriptLength: script.length 
       });
+    // Tavus API v2 only supports: replica_id, script, video_name, background_url
+    // All other fields (voice_type, include_stats, etc.) cause 400 errors
+    return {};
+        // ❌ REMOVED: callback_url: null (cannot be null if included)
+        // ❌ REMOVED: videoConfig (contains invalid fields like include_stats, voice_type, etc.)
+      console.log('📤 Tavus API payload (valid fields only):', payload);
 
       const response = await fetch(`${this.baseUrl}/videos`, {
         method: 'POST',
