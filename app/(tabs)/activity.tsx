@@ -119,10 +119,14 @@ export default function ActivityTab() {
             <Text style={styles.statValue}>{Math.floor(stats.totalDuration / 60)}h</Text>
             <Text style={styles.statLabel}>Time</Text>
           </View>
+          <TouchableOpacity 
+            style={styles.statCard}
             onPress={() => router.push('/(tabs)/videos')}
-            <Zap size={20} color="#EF4444" />
+          >
             <Video size={20} color="#8B5CF6" />
-            <Text style={styles.secondaryActionText}>My Videos</Text>
+            <Text style={styles.statValue}>{stats.videosGenerated || 0}</Text>
+            <Text style={styles.statLabel}>Videos</Text>
+          </TouchableOpacity>
           </View>
         </View>
       </View>
