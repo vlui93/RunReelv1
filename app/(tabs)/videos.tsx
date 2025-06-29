@@ -16,24 +16,7 @@ import {
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useVideoLibrary } from '@/hooks/useVideoLibrary';
-import {
-  Video,
-  Play,
-  MoreVertical,
-  Edit3,
-  Trash2,
-  Share2,
-  Download,
-  Calendar,
-  Clock,
-  Target,
-  Search,
-  Filter,
-  Grid,
-  List,
-  X,
-  Check,
-} from 'lucide-react-native';
+import { Video, Play, MoveVertical as MoreVertical, CreditCard as Edit3, Trash2, Share2, Download, Calendar, Clock, Target, Search, Filter, Grid2x2 as Grid, List, X, Check } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface VideoItem {
