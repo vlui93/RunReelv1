@@ -167,7 +167,7 @@ class EnhancedTavusService {
   async generateVideoWithFal(
     achievement: Achievement,
     request: VideoGenerationRequest
-  ): Promise<any> {
+  ): Promise<TavusResponse> {
     try {
       const script = this.generateAchievementScript(achievement);
       const videoConfig = this.getVideoConfig(request.format, request.customization);
@@ -197,7 +197,16 @@ class EnhancedTavusService {
         throw new Error(`FAL.ai API error: ${response.status} ${response.statusText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Transform FAL.ai response to TavusResponse format
+      return {
+        video_id: data.video_id || data.id || `fal_${Date.now()}`,
+        status: data.status || 'pending',
+        video_url: data.video_url || data.download_url,
+        preview_url: data.preview_url || data.hosted_url,
+        thumbnail_url: data.thumbnail_url
+      };
     } catch (error) {
       console.error('Error generating video with FAL:', error);
       throw error;

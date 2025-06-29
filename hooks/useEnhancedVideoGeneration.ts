@@ -103,7 +103,7 @@ export function useEnhancedVideoGeneration() {
         currentStep: 'processing'
       }));
 
-      // Generate video using enhanced Tavus service
+      // Generate video using FAL.ai integration for enhanced features
       const videoRequest = {
         achievementId: achievement.id,
         templateId: templateId,
@@ -117,7 +117,8 @@ export function useEnhancedVideoGeneration() {
         }
       };
 
-      const tavusResponse = await enhancedTavusService.generateAchievementVideo(
+      // Use FAL.ai integration for enhanced customization features
+      const tavusResponse = await enhancedTavusService.generateVideoWithFal(
         achievement,
         videoRequest
       );
