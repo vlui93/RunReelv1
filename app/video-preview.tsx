@@ -9,13 +9,12 @@ import {
   Share,
   Platform,
 } from 'react-native';
-  Bookmark,
-  Video
-import { ArrowLeft, Play, Pause, Volume2, VolumeX, MoveHorizontal as MoreHorizontal, Download, Heart, MessageCircle, Bookmark } from 'lucide-react-native';
+import { ArrowLeft, Play, Pause, Volume2, VolumeX, MoveHorizontal as MoreHorizontal, Download, Heart, MessageCircle, Bookmark, Video } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { Linking } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -68,6 +67,7 @@ export default function VideoPreviewScreen() {
   const [showControls, setShowControls] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [runData, setRunData] = useState<any>(null);
   const [shareCount, setShareCount] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
@@ -225,6 +225,10 @@ export default function VideoPreviewScreen() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
   return (
     <View style={styles.container}>
       <StatusBar hidden />
