@@ -11,10 +11,7 @@ import {
   Clock, 
   Target, 
   Zap,
-  Navigation as NavigationIcon,
-  Activity,
-  Video,
-  Plus
+  Navigation as NavigationIcon
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MapViewComponent from '@/components/MapViewComponent';
@@ -100,8 +97,8 @@ export default function NavigateTab() {
         </TouchableOpacity>
       </View>
     );
-            <Activity size={24} color="#FFFFFF" />
-            <Text style={styles.primaryActionText}>View Activities</Text>
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -158,10 +155,15 @@ export default function NavigateTab() {
 
       {/* Control Buttons */}
       <View style={styles.controlsContainer}>
-            onPress={() => router.push('/(tabs)/videos')}
+        {!isRunning ? (
           <TouchableOpacity style={styles.startButton} onPress={handleStartRun}>
-            <Video size={20} color="#8B5CF6" />
-            <Text style={styles.secondaryActionText}>My Videos</Text>
+            <LinearGradient
+              colors={['#10B981', '#059669']}
+              style={styles.startButtonGradient}
+            >
+              <Play size={24} color="#FFFFFF" />
+              <Text style={styles.startButtonText}>Start Run</Text>
+            </LinearGradient>
           </TouchableOpacity>
         ) : (
           <View style={styles.runningControls}>
@@ -202,10 +204,10 @@ export default function NavigateTab() {
 
       {/* Location Permission Notice */}
       {!hasLocationPermission && (
-            onPress={() => router.push('/manual-entry')}
-          <MapPin size={20} color="#F59E0B" />
-            <Plus size={20} color="#10B981" />
-            <Text style={styles.secondaryActionText}>Log Activity</Text>
+        <View style={styles.permissionNotice}>
+          <MapPin size={20} color="#92400E" />
+          <Text style={styles.permissionNoticeText}>
+            Location permission is required to track your runs
           </Text>
         </View>
       )}
