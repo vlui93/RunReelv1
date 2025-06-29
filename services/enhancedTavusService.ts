@@ -148,11 +148,9 @@ class EnhancedTavusService {
         format,
         scriptLength: script.length 
       });
-    // Tavus API v2 only supports: replica_id, script, video_name, background_url
-    // All other fields (voice_type, include_stats, etc.) cause 400 errors
-    return {};
-        // ❌ REMOVED: callback_url: null (cannot be null if included)
-        // ❌ REMOVED: videoConfig (contains invalid fields like include_stats, voice_type, etc.)
+
+      // Tavus API v2 only supports: replica_id, script, video_name, background_url
+      // All other fields (voice_type, include_stats, etc.) cause 400 errors
       console.log('📤 Tavus API payload (valid fields only):', payload);
 
       const response = await fetch(`${this.baseUrl}/videos`, {
