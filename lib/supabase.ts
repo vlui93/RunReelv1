@@ -16,16 +16,37 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 export const refreshSupabaseSchema = async () => {
   try {
-    // Method 1: Use PostgreSQL NOTIFY command to reload PostgREST schema cache
+    console.log('🔄 Refreshing Supabase schema cache...');
+    
+    // Method 1: Use the notify function to reload PostgREST schema cache
     const { data, error } = await supabase
-      .rpc('notify_schema_reload');
+      .rpc('notify_pgrst_reload');
     
     if (error) {
-      console.error('Schema refresh error:', error);
+      console.warn('Schema refresh notification failed:', error.message);
+      // Continue with alternative method
+    } else {
+      console.log('✅ Schema refresh notification sent');
+    }
+    
+    // Method 2: Test the schema by querying the problematic table
+    console.log('🔍 Verifying schema with test query...');
+    const { data: testData, error: testError } = await supabase
+      .from('video_generations')
+      .select('id, generation_config')
+      .limit(1);
+    
+    if (testError) {
+      if (testError.code === 'PGRST204') {
+        console.error('❌ Schema cache still out of sync:', testError.message);
+        console.log('💡 Try running: node scripts/refresh-schema.js');
+        return false;
+      }
+      console.warn('Schema test query failed:', testError.message);
       return false;
     }
     
-    console.log('Schema refresh successful:', data);
+    console.log('✅ Schema cache is synchronized');
     return true;
   } catch (error) {
     console.error('Schema refresh failed:', error);
@@ -36,17 +57,26 @@ export const refreshSupabaseSchema = async () => {
 // Alternative method using direct SQL execution
 export const forceSchemaReload = async () => {
   try {
-    const { data, error } = await supabase
-      .rpc('execute_sql', { 
-        sql: "NOTIFY pgrst, 'reload schema'" 
-      });
+    console.log('🔧 Force reloading schema cache...');
     
-    console.log('Force schema reload result:', { data, error });
-    return !error;
+    // Try multiple methods to force schema reload
+    const methods = [
+      () => supabase.rpc('notify_pgrst_reload'),
+      () => supabase.rpc('check_column_exists', { table_name: 'video_generations', column_name: 'generation_config' })
+    ];
+    
+    for (const method of methods) {
+      try {
+        await method();
+        console.log('✅ Schema reload method succeeded');
+      } catch (err) {
+        console.warn('Schema reload method failed:', err);
+      }
+    }
+    
+    return await refreshSupabaseSchema();
   } catch (error) {
     console.error('Force schema reload failed:', error);
-    return false;
-  }
 }
 
 export type Database = {
