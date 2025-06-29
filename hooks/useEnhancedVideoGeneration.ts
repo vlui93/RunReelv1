@@ -56,6 +56,20 @@ export function useEnhancedVideoGeneration() {
       throw new Error('User not authenticated');
     }
 
+    // Check if Tavus is configured
+    const configStatus = enhancedTavusService.getConfigStatus();
+    if (!configStatus.configured) {
+      setState({
+        isGenerating: false,
+        progress: '',
+        error: configStatus.message,
+        videoUrl: null,
+        thumbnailUrl: null,
+        currentStep: 'failed'
+      });
+      throw new Error(configStatus.message);
+    }
+
     setState({
       isGenerating: true,
       progress: 'Initializing video generation...',
@@ -74,15 +88,16 @@ export function useEnhancedVideoGeneration() {
 
       // Create video generation record with proper user_id
       const videoGenRecord = {
-        user_id: authUser.id, // Use authenticated user ID
+        user_id: authUser.id,
         run_id: null, // For achievement videos, we don't have a run_id
+        achievement_id: achievement.id,
         template_id: templateId,
         status: 'pending' as const,
         video_format: customization.format,
         generation_config: customization
       };
 
-      console.log('Creating video generation record:', videoGenRecord);
+      console.log('📝 Creating video generation record:', videoGenRecord);
 
       const { data: videoGeneration, error: insertError } = await supabase
         .from('video_generations')
@@ -91,11 +106,11 @@ export function useEnhancedVideoGeneration() {
         .single();
 
       if (insertError) {
-        console.error('Video generation record error:', insertError);
+        console.error('❌ Video generation record error:', insertError);
         throw new Error(`Failed to create video generation record: ${insertError.message}`);
       }
 
-      console.log('Video generation record created:', videoGeneration);
+      console.log('✅ Video generation record created:', videoGeneration);
 
       setState(prev => ({
         ...prev,
@@ -103,21 +118,7 @@ export function useEnhancedVideoGeneration() {
         currentStep: 'processing'
       }));
 
-      // Generate video using FAL.ai integration for enhanced features
-      const videoRequest = {
-        achievementId: achievement.id,
-        templateId: templateId,
-        format: customization.format,
-        customization: {
-          voiceType: customization.voiceType,
-          backgroundStyle: customization.backgroundStyle,
-          musicStyle: customization.musicStyle,
-          includeStats: customization.includeStats,
-          includeBranding: customization.includeBranding
-        }
-      };
-
-      // Use Tavus API directly for video generation
+      // Generate video using Tavus API directly
       const tavusResponse = await enhancedTavusService.generateAchievementVideo(
         achievement,
         customization.format,
@@ -135,7 +136,7 @@ export function useEnhancedVideoGeneration() {
 
       setState(prev => ({
         ...prev,
-        progress: 'Video is being processed by AI...',
+        progress: 'Video is being processed by Tavus AI...',
       }));
 
       // Poll for completion
@@ -157,6 +158,7 @@ export function useEnhancedVideoGeneration() {
           .from('video_generations')
           .update({
             status: 'completed',
+            video_url: completedVideo.video_url,
           })
           .eq('id', videoGeneration.id);
 
@@ -181,11 +183,11 @@ export function useEnhancedVideoGeneration() {
           videoId: videoGeneration.id
         };
       } else {
-        throw new Error('Video generation failed');
+        throw new Error('Video generation failed - no video URL returned');
       }
 
     } catch (error) {
-      console.error('Video generation error:', error);
+      console.error('❌ Video generation error:', error);
       
       setState({
         isGenerating: false,
@@ -204,12 +206,13 @@ export function useEnhancedVideoGeneration() {
             .from('video_generations')
             .update({
               status: 'failed',
+              error_message: error instanceof Error ? error.message : 'Unknown error'
             })
             .eq('user_id', authUser.id)
             .in('status', ['pending', 'processing']);
         }
       } catch (updateError) {
-        console.error('Failed to update video generation record with error:', updateError);
+        console.error('❌ Failed to update video generation record with error:', updateError);
       }
 
       throw error;
@@ -221,6 +224,11 @@ export function useEnhancedVideoGeneration() {
     format: 'square' | 'vertical' | 'horizontal' = 'square'
   ) => {
     if (!user || achievements.length === 0) return;
+
+    // Check if Tavus is configured
+    if (!enhancedTavusService.isConfigured()) {
+      throw new Error('Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.');
+    }
 
     // Verify user authentication
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
@@ -247,7 +255,7 @@ export function useEnhancedVideoGeneration() {
           await supabase
             .from('video_generations')
             .insert({
-              user_id: authUser.id, // Include user_id
+              user_id: authUser.id,
               achievement_id: achievement.id,
               tavus_job_id: success.video_id,
               status: 'processing',
@@ -291,7 +299,7 @@ export function useEnhancedVideoGeneration() {
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('Error fetching video templates:', error);
+      console.error('❌ Error fetching video templates:', error);
       return [];
     }
   };

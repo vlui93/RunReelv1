@@ -37,11 +37,13 @@ interface TavusResponse {
 class EnhancedTavusService {
   private apiKey: string;
   private baseUrl = 'https://tavusapi.com/v2';
-  private falApiKey: string;
 
   constructor() {
     this.apiKey = process.env.EXPO_PUBLIC_TAVUS_API_KEY || '';
-    this.falApiKey = process.env.EXPO_PUBLIC_FAL_API_KEY || '';
+    
+    if (!this.apiKey) {
+      console.warn('⚠️ TAVUS API KEY MISSING: Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables');
+    }
   }
 
   private generateAchievementScript(achievement: Achievement): string {
@@ -123,19 +125,30 @@ class EnhancedTavusService {
 
   async generateAchievementVideo(
     achievement: Achievement, 
-    request: VideoGenerationRequest
+    format: 'square' | 'vertical' | 'horizontal' = 'square',
+    templateId?: string
   ): Promise<TavusResponse> {
+    if (!this.apiKey) {
+      throw new Error('Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.');
+    }
+
     try {
       const script = this.generateAchievementScript(achievement);
-      const videoConfig = this.getVideoConfig(request.format, request.customization);
+      const videoConfig = this.getVideoConfig(format);
       
       const payload = {
         replica_id: 'default-replica', // In production, this would be user-specific
         script: script,
-        video_name: `activity_${achievement.id}_${Date.now()}`,
+        video_name: `achievement_${achievement.id}_${Date.now()}`,
         callback_url: null,
         ...videoConfig
       };
+
+      console.log('🎬 Generating video with Tavus API...', { 
+        achievementType: achievement.achievement_type,
+        format,
+        scriptLength: script.length 
+      });
 
       const response = await fetch(`${this.baseUrl}/videos`, {
         method: 'POST',
@@ -147,10 +160,18 @@ class EnhancedTavusService {
       });
 
       if (!response.ok) {
-        throw new Error(`Tavus API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Tavus API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Tavus API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('✅ Tavus video generation started:', data);
+      
       return {
         video_id: data.video_id,
         status: data.status || 'pending',
@@ -159,61 +180,16 @@ class EnhancedTavusService {
         thumbnail_url: data.thumbnail_url
       };
     } catch (error) {
-      console.error('Error generating achievement video:', error);
-      throw error;
-    }
-  }
-
-  async generateVideoWithFal(
-    achievement: Achievement,
-    request: VideoGenerationRequest
-  ): Promise<TavusResponse> {
-    try {
-      const script = this.generateAchievementScript(achievement);
-      const videoConfig = this.getVideoConfig(request.format, request.customization);
-      
-      const payload = {
-        replica_id: 'default-replica',
-        script: script,
-        video_config: videoConfig,
-        achievement_data: {
-          type: achievement.achievement_type,
-          category: achievement.category,
-          value: achievement.value,
-          description: achievement.description
-        }
-      };
-
-      const response = await fetch('https://fal.run/fal-ai/tavus/hummingbird-lipsync/v0', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Key ${this.falApiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`FAL.ai API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      // Transform FAL.ai response to TavusResponse format
-      return {
-        video_id: data.video_id || data.id || `fal_${Date.now()}`,
-        status: data.status || 'pending',
-        video_url: data.video_url || data.download_url,
-        preview_url: data.preview_url || data.hosted_url,
-        thumbnail_url: data.thumbnail_url
-      };
-    } catch (error) {
-      console.error('Error generating video with FAL:', error);
+      console.error('❌ Error generating achievement video:', error);
       throw error;
     }
   }
 
   async getVideoStatus(videoId: string): Promise<TavusResponse> {
+    if (!this.apiKey) {
+      throw new Error('Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.');
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/videos/${videoId}`, {
         method: 'GET',
@@ -223,7 +199,8 @@ class EnhancedTavusService {
       });
 
       if (!response.ok) {
-        throw new Error(`Tavus API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Tavus API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -235,7 +212,7 @@ class EnhancedTavusService {
         thumbnail_url: data.thumbnail_url
       };
     } catch (error) {
-      console.error('Error checking video status:', error);
+      console.error('❌ Error checking video status:', error);
       throw error;
     }
   }
@@ -245,11 +222,16 @@ class EnhancedTavusService {
     maxAttempts: number = 30,
     intervalMs: number = 3000
   ): Promise<TavusResponse> {
+    console.log(`🔄 Polling video completion for ${videoId}...`);
+    
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const status = await this.getVideoStatus(videoId);
         
+        console.log(`📊 Poll attempt ${attempt + 1}/${maxAttempts}: ${status.status}`);
+        
         if (status.status === 'completed' || status.status === 'failed') {
+          console.log(`🎯 Video generation ${status.status}:`, status);
           return status;
         }
 
@@ -257,14 +239,14 @@ class EnhancedTavusService {
           await new Promise(resolve => setTimeout(resolve, intervalMs));
         }
       } catch (error) {
-        console.error(`Polling attempt ${attempt + 1} failed:`, error);
+        console.error(`❌ Polling attempt ${attempt + 1} failed:`, error);
         if (attempt === maxAttempts - 1) {
           throw error;
         }
       }
     }
 
-    throw new Error('Video generation timeout');
+    throw new Error('Video generation timeout - exceeded maximum polling attempts');
   }
 
   // Batch video generation for multiple achievements
@@ -272,17 +254,18 @@ class EnhancedTavusService {
     achievements: Achievement[],
     format: 'square' | 'vertical' | 'horizontal' = 'square'
   ): Promise<{ success: TavusResponse[], failed: { achievement: Achievement, error: string }[] }> {
+    if (!this.apiKey) {
+      throw new Error('Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your environment variables.');
+    }
+
     const success: TavusResponse[] = [];
     const failed: { achievement: Achievement, error: string }[] = [];
 
+    console.log(`🎬 Starting batch video generation for ${achievements.length} achievements...`);
+
     for (const achievement of achievements) {
       try {
-        const request: VideoGenerationRequest = {
-          achievementId: achievement.id,
-          format: format
-        };
-        
-        const result = await this.generateAchievementVideo(achievement, request);
+        const result = await this.generateAchievementVideo(achievement, format);
         success.push(result);
         
         // Add delay between requests to respect rate limits
@@ -295,11 +278,17 @@ class EnhancedTavusService {
       }
     }
 
+    console.log(`✅ Batch generation complete: ${success.length} success, ${failed.length} failed`);
     return { success, failed };
   }
 
   // Get available video templates
   async getVideoTemplates(): Promise<any[]> {
+    if (!this.apiKey) {
+      console.warn('⚠️ Tavus API key missing - cannot fetch templates');
+      return [];
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/templates`, {
         method: 'GET',
@@ -314,9 +303,29 @@ class EnhancedTavusService {
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching video templates:', error);
+      console.error('❌ Error fetching video templates:', error);
       return [];
     }
+  }
+
+  // Check if API key is configured
+  isConfigured(): boolean {
+    return !!this.apiKey;
+  }
+
+  // Get configuration status for debugging
+  getConfigStatus(): { configured: boolean, message: string } {
+    if (!this.apiKey) {
+      return {
+        configured: false,
+        message: 'Tavus API key is missing. Please set EXPO_PUBLIC_TAVUS_API_KEY in your .env file.'
+      };
+    }
+    
+    return {
+      configured: true,
+      message: 'Tavus API is properly configured.'
+    };
   }
 }
 
