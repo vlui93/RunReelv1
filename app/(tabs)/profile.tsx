@@ -3,18 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { supabase } from '@/lib/supabase';
-import { 
-  User, 
-  Edit3, 
-  Settings, 
-  Activity, 
-  Video, 
-  Target, 
-  Ruler, 
-  Bell, 
-  Calendar, 
-  Globe 
-} from 'lucide-react-native';
+import { User, CreditCard as Edit3, Settings, Activity, Video, Target, Ruler, Bell, Calendar, Globe } from 'lucide-react-native';
 
 interface UserProfile {
   id: string;
