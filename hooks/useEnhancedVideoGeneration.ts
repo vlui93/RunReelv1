@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { enhancedTavusService } from '@/services/enhancedTavusService';
 import { useAuth } from './useAuth';
@@ -129,14 +129,17 @@ export function useEnhancedVideoGeneration() {
       throw new Error(configStatus.message);
     }
 
-    setState({
+    setState(prev => ({
+      ...prev,
       isGenerating: true,
       progress: 'Initializing video generation...',
       error: null,
       videoUrl: null,
       thumbnailUrl: null,
-      currentStep: 'initializing'
-    });
+      currentStep: 'initializing',
+      elapsedTime: 0,
+      estimatedTimeRemaining: 180
+    }));
 
     try {
       // Verify user authentication
@@ -161,11 +164,12 @@ export function useEnhancedVideoGeneration() {
       if (result.success && result.videoUrl) {
         setState(prev => ({
           ...prev,
-          progress: 'Requesting video generation from Tavus...',
+          progress: 'Video generation completed!',
           currentStep: 'completed'
         }));
 
-        setState({
+        setState(prev => ({
+          ...prev,
           isGenerating: false,
           progress: 'Video generation completed!',
           error: null,
@@ -174,7 +178,7 @@ export function useEnhancedVideoGeneration() {
           currentStep: 'completed',
           elapsedTime: result.total_time || 0,
           estimatedTimeRemaining: 0
-        });
+        }));
 
         return {
           videoUrl: result.videoUrl,
@@ -188,18 +192,17 @@ export function useEnhancedVideoGeneration() {
     } catch (error) {
       console.error('❌ Video generation error:', error);
       
-      setState({
+      setState(prev => ({
+        ...prev,
         isGenerating: false,
-        progress: 'Initializing video generation...',
-        error: this.getEnhancedErrorMessage(error),
+        progress: '',
+        error: getEnhancedErrorMessage(error),
         videoUrl: null,
         thumbnailUrl: null,
         currentStep: 'failed',
         elapsedTime: 0,
-        estimatedTimeRemaining: 0,
-        elapsedTime: 0,
         estimatedTimeRemaining: 180
-      });
+      }));
 
       throw error;
     }
@@ -240,7 +243,8 @@ export function useEnhancedVideoGeneration() {
   };
 
   const resetState = () => {
-    setState({
+    setState(prev => ({
+      ...prev,
       isGenerating: false,
       progress: '',
       error: null,
@@ -249,7 +253,7 @@ export function useEnhancedVideoGeneration() {
       currentStep: 'initializing',
       elapsedTime: 0,
       estimatedTimeRemaining: 180
-    });
+    }));
 
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
