@@ -136,8 +136,6 @@ class EnhancedTavusService {
       // ✅ CORRECT: Only use valid Tavus API fields
       const payload = {
         replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
-        replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
-        replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
         script: script,
         video_name: `activity_${activity.id}_${Date.now()}`
         // ❌ REMOVED: callback_url: null (cannot be null if included)
@@ -149,16 +147,7 @@ class EnhancedTavusService {
         format,
         scriptLength: script.length 
       });
-}
 
-if (!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY === 'your_supabase_anon_key') {
-  console.warn('⚠️  Supabase anon key not configured. Please update your .env file with your actual Supabase anon key.');
-}
-    // Tavus API v2 only supports: replica_id, script, video_name, background_url
-    // All other fields (voice_type, include_stats, etc.) cause 400 errors
-    return {};
-        // ❌ REMOVED: callback_url: null (cannot be null if included)
-        // ❌ REMOVED: videoConfig (contains invalid fields like include_stats, voice_type, etc.)
       console.log('📤 Tavus API payload (valid fields only):', payload);
 
       const response = await fetch(`${this.baseUrl}/videos`, {
