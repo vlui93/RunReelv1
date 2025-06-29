@@ -55,9 +55,10 @@ const socialPlatforms: SocialPlatform[] = [
 
 export default function VideoPreviewScreen() {
   const { user } = useAuth();
-  const { videoUrl, runId } = useLocalSearchParams<{ 
+  const { videoUrl, runId, videoId } = useLocalSearchParams<{ 
     videoUrl: string; 
-    runId: string; 
+    runId?: string;
+    videoId?: string;
   }>();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -73,9 +74,11 @@ export default function VideoPreviewScreen() {
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    fetchRunData();
+    if (runId) {
+      fetchRunData();
+    }
     trackVideoView();
-  }, [runId]);
+  }, [runId, videoId]);
 
   useEffect(() => {
     // Auto-hide controls after 3 seconds
