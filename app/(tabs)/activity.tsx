@@ -127,7 +127,6 @@ export default function ActivityTab() {
             <Text style={styles.statValue}>{stats.videosGenerated || 0}</Text>
             <Text style={styles.statLabel}>Videos</Text>
           </TouchableOpacity>
-          </View>
         </View>
       </View>
 
