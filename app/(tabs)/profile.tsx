@@ -4,19 +4,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useManualActivities } from '@/hooks/useManualActivities';
 import { useAchievements } from '@/hooks/useAchievements';
-import { 
-  User, 
-  Settings, 
-  Trophy, 
-  Target, 
-  TrendingUp, 
-  Calendar,
-  LogOut,
-  Edit,
-  Share2,
-  Award,
-  Activity as ActivityIcon
-} from 'lucide-react-native';
+import { User, Settings, Trophy, Target, TrendingUp, Calendar, LogOut, CreditCard as Edit, Share2, Award, Activity as ActivityIcon } from 'lucide-react-native';
 
 export default function ProfileTab() {
   const { user, signOut } = useAuth();
