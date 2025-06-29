@@ -187,11 +187,11 @@ export default function AchievementsScreen() {
             
             <View style={styles.estimateContainer}>
               <Text style={styles.estimateText}>
-                Expected: {state.isPeakUsage ? '5-10 minutes' : '1-3 minutes'}
+                Expected: {state.isPeakUsage ? '3-6 minutes' : '1-2 minutes'}
               </Text>
               {state.isPeakUsage && (
                 <Text style={styles.peakUsageHint}>
-                  💡 Try during off-peak hours (early morning/late evening) for faster processing
+                  💡 Using fast generation (1080p). Try off-peak hours for even faster processing.
                 </Text>
               )}
             </View>

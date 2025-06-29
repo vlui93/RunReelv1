@@ -628,11 +628,11 @@ export default function ActivityDetailsScreen() {
               
               <View style={styles.estimateContainer}>
                 <Text style={styles.estimateText}>
-                  Expected: {isPeakUsage ? '5-10 minutes' : '1-3 minutes'}
+                  Expected: {isPeakUsage ? '3-6 minutes' : '1-2 minutes'}
                 </Text>
                 {isPeakUsage && (
                   <Text style={styles.peakUsageHint}>
-                    💡 Try during off-peak hours (early morning/late evening) for faster processing
+                    💡 Using fast generation (1080p). Try off-peak hours for even faster processing.
                   </Text>
                 )}
               </View>

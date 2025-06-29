@@ -208,17 +208,19 @@ class EnhancedTavusService {
 
   private async initiateVideoGeneration(activity: ActivityData, script: string) {
     try {
-      // Only use valid Tavus API fields to avoid 400 errors
+      // Use valid Tavus API fields with fast generation enabled for 1080p quality
       const payload = {
         replica_id: process.env.EXPO_PUBLIC_TAVUS_REPLICA_ID || 'default-replica',
         script: script,
-        video_name: `activity_${activity.id}_${Date.now()}`
+        video_name: `activity_${activity.id}_${Date.now()}`,
+        fast: true  // Enable fast generation for ~3.25 minutes per minute of content (1080p)
       };
 
       console.log('📤 Tavus API request (valid fields only):', {
         replica_id: payload.replica_id ? 'SET' : 'MISSING',
         script_length: payload.script.length,
-        video_name: payload.video_name
+        video_name: payload.video_name,
+        fast_generation: 'ENABLED (1080p quality)'
       });
 
       const response = await fetch(`${this.baseUrl}/videos`, {

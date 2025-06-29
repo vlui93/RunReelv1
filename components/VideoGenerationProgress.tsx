@@ -121,7 +121,7 @@ export default function VideoGenerationProgress({
         <View style={styles.timeItem}>
           <Text style={styles.timeLabel}>Expected:</Text>
           <Text style={[styles.timeValue, isPeakUsage && styles.peakTimeValue]}>
-            {isPeakUsage ? '5-10 minutes' : '1-3 minutes'}
+            {isPeakUsage ? '3-6 minutes' : '1-2 minutes'}
           </Text>
         </View>
       </View>
@@ -136,7 +136,7 @@ export default function VideoGenerationProgress({
               Queue times are longer than usual. Your video will process soon.
             </Text>
             <Text style={styles.peakUsageHint}>
-              💡 Try during off-peak hours (early morning/late evening) for faster processing
+              💡 Using fast generation (1080p). Try off-peak hours for even faster processing.
             </Text>
           </View>
         </View>
@@ -192,10 +192,10 @@ export default function VideoGenerationProgress({
           {elapsedTime > 300 && ( // Show after 5 minutes
             <View style={styles.timeoutInfo}>
               <Text style={styles.timeoutText}>
-                Video generation is taking longer than expected. This can happen during peak usage periods.
+                Video generation is taking longer than expected with fast mode enabled. This can happen during peak usage periods.
               </Text>
               <Text style={styles.timeoutSubtext}>
-                Your video may still be processing. You can check the dashboard or try again later.
+                Your video may still be processing in 1080p quality. Check the dashboard or try again during off-peak hours.
               </Text>
             </View>
           )}

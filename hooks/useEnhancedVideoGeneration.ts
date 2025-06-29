@@ -46,7 +46,7 @@ export function useEnhancedVideoGeneration() {
     thumbnailUrl: null,
     currentStep: 'initializing',
     elapsedTime: 0,
-    estimatedTimeRemaining: 300, // 5 minutes default estimate for peak usage
+    estimatedTimeRemaining: 180, // 3 minutes with fast generation enabled
     isPeakUsage: false
   });
 
@@ -61,7 +61,7 @@ export function useEnhancedVideoGeneration() {
     const remaining = Math.max(0, state.estimatedTimeRemaining - elapsed);
     
     // Detect peak usage if processing takes longer than expected
-    const isPeakUsage = elapsed > 180; // 3 minutes indicates peak usage
+    const isPeakUsage = elapsed > 120; // 2 minutes indicates peak usage with fast generation
 
     setState(prev => ({
       ...prev,
@@ -80,11 +80,11 @@ export function useEnhancedVideoGeneration() {
         return 'Starting video generation...';
       } else if (elapsedSeconds < 90) {
         return 'Added to processing queue...';
-      } else if (elapsedSeconds < 180) {
+      } else if (elapsedSeconds < 120) {
         return 'Waiting in queue - this is normal during peak hours...';
-      } else if (elapsedSeconds < 300) {
+      } else if (elapsedSeconds < 240) {
         return isPeakUsage ? 'Still queued - experiencing high demand...' : 'Processing your video - AI generation in progress...';
-      } else if (elapsedSeconds < 450) {
+      } else if (elapsedSeconds < 360) {
         return 'Processing your video - AI generation in progress...';
       } else {
         return 'Almost complete - finalizing your achievement video...';
@@ -136,7 +136,7 @@ export function useEnhancedVideoGeneration() {
         thumbnailUrl: null,
         currentStep: 'failed',
         elapsedTime: 0,
-        estimatedTimeRemaining: 600, // 10 minutes for enhanced timeout
+        estimatedTimeRemaining: 480, // 8 minutes for enhanced timeout with fast generation
         isPeakUsage: false
       });
       throw new Error(configStatus.message);
@@ -151,7 +151,7 @@ export function useEnhancedVideoGeneration() {
       thumbnailUrl: null,
       currentStep: 'initializing',
       elapsedTime: 0,
-      estimatedTimeRemaining: 600, // 10 minutes for enhanced timeout
+      estimatedTimeRemaining: 480, // 8 minutes for enhanced timeout with fast generation
       isPeakUsage: false
     }));
 
@@ -192,7 +192,7 @@ export function useEnhancedVideoGeneration() {
           currentStep: 'completed',
           elapsedTime: result.total_time || 0,
           estimatedTimeRemaining: 0,
-          isPeakUsage: result.total_time ? result.total_time > 180 : false
+          isPeakUsage: result.total_time ? result.total_time > 120 : false
         }));
 
         return {
@@ -216,7 +216,7 @@ export function useEnhancedVideoGeneration() {
         thumbnailUrl: null,
         currentStep: 'failed',
         elapsedTime: 0,
-        estimatedTimeRemaining: 600,
+        estimatedTimeRemaining: 480,
         isPeakUsage: false
       }));
 
@@ -268,7 +268,7 @@ export function useEnhancedVideoGeneration() {
       thumbnailUrl: null,
       currentStep: 'initializing',
       elapsedTime: 0,
-      estimatedTimeRemaining: 600,
+      estimatedTimeRemaining: 480,
       isPeakUsage: false
     }));
 
@@ -283,7 +283,7 @@ export function useEnhancedVideoGeneration() {
     if (state.currentStep === 'failed') return 0;
     
     // Calculate progress based on elapsed time and estimated duration
-    const maxEstimatedTime = state.isPeakUsage ? 600 : 300; // 10 minutes for peak usage, 5 minutes normal
+    const maxEstimatedTime = state.isPeakUsage ? 480 : 240; // 8 minutes for peak usage, 4 minutes normal with fast generation
     const timeProgress = Math.min((state.elapsedTime / maxEstimatedTime) * 100, 95);
     
     switch (state.currentStep) {
@@ -306,8 +306,8 @@ export function useEnhancedVideoGeneration() {
 
   const formatEstimatedTimeRemaining = (): string => {
     if (state.estimatedTimeRemaining <= 0) return 'Almost done...';
-    if (state.isPeakUsage && state.estimatedTimeRemaining > 300) {
-      return 'Peak usage - may take 5-10 minutes';
+    if (state.isPeakUsage && state.estimatedTimeRemaining > 240) {
+      return 'Peak usage - may take 3-6 minutes';
     }
     const minutes = Math.floor(state.estimatedTimeRemaining / 60);
     const seconds = state.estimatedTimeRemaining % 60;
