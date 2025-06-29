@@ -81,6 +81,7 @@ export default function ActivityDetailsScreen() {
     currentStep,
     getProgressPercentage,
     resetState,
+    state,
   } = useEnhancedVideoGeneration();
 
   const { limits } = useApiUsage();
@@ -551,12 +552,21 @@ export default function ActivityDetailsScreen() {
             <Video size={48} color="#3B82F6" />
             <Text style={styles.generatingTitle}>Generating Your Video...</Text>
             <Text style={styles.generatingProgress}>{progress}</Text>
+            {state.isPeakUsage && (
+              <View style={styles.peakUsageWarning}>
+                <Text style={styles.peakUsageText}>⏰ Peak Usage Detected</Text>
+                <Text style={styles.peakUsageSubtext}>
+                  Queue times are longer than usual. Your video will process soon.
+                </Text>
+              </View>
+            )}
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${getProgressPercentage()}%` }]} />
             </View>
             <Text style={styles.progressText}>
               {currentStep === 'initializing' && 'Initializing...'}
-              {currentStep === 'processing' && 'Processing with AI...'}
+              {currentStep === 'processing' && !state.isPeakUsage && 'Processing with AI...'}
+              {currentStep === 'processing' && state.isPeakUsage && 'Waiting in queue - peak usage detected...'}
               {currentStep === 'finalizing' && 'Finalizing video...'}
               {currentStep === 'completed' && 'Completed!'}
               {currentStep === 'failed' && 'Failed'}
@@ -614,6 +624,17 @@ export default function ActivityDetailsScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
+              </View>
+              
+              <View style={styles.estimateContainer}>
+                <Text style={styles.estimateText}>
+                  Expected: {state.isPeakUsage ? '5-10 minutes' : '1-3 minutes'}
+                </Text>
+                {state.isPeakUsage && (
+                  <Text style={styles.peakUsageHint}>
+                    💡 Try during off-peak hours (early morning/late evening) for faster processing
+                  </Text>
+                )}
               </View>
             </View>
 
@@ -1045,6 +1066,40 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 8,
     textAlign: 'center',
+  },
+  peakUsageWarning: {
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  peakUsageText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  peakUsageSubtext: {
+    fontSize: 12,
+    color: '#92400E',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  estimateContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  estimateText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  peakUsageHint: {
+    fontSize: 12,
+    color: '#92400E',
+    marginTop: 4,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   errorVideoContainer: {
     backgroundColor: '#FFFFFF',
