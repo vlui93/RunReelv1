@@ -81,7 +81,7 @@ export default function ActivityDetailsScreen() {
     currentStep,
     getProgressPercentage,
     resetState,
-    isPeakUsage,
+    state,
   } = useEnhancedVideoGeneration();
 
   const { limits } = useApiUsage();
@@ -552,7 +552,7 @@ export default function ActivityDetailsScreen() {
             <Video size={48} color="#3B82F6" />
             <Text style={styles.generatingTitle}>Generating Your Video...</Text>
             <Text style={styles.generatingProgress}>{progress}</Text>
-            {isPeakUsage && (
+            {state.isPeakUsage && (
               <View style={styles.peakUsageWarning}>
                 <Text style={styles.peakUsageText}>⏰ Peak Usage Detected</Text>
                 <Text style={styles.peakUsageSubtext}>
@@ -565,8 +565,8 @@ export default function ActivityDetailsScreen() {
             </View>
             <Text style={styles.progressText}>
               {currentStep === 'initializing' && 'Initializing...'}
-              {currentStep === 'processing' && !isPeakUsage && 'Processing with AI...'}
-              {currentStep === 'processing' && isPeakUsage && 'Waiting in queue - peak usage detected...'}
+              {currentStep === 'processing' && !state.isPeakUsage && 'Processing with AI...'}
+              {currentStep === 'processing' && state.isPeakUsage && 'Waiting in queue - peak usage detected...'}
               {currentStep === 'finalizing' && 'Finalizing video...'}
               {currentStep === 'completed' && 'Completed!'}
               {currentStep === 'failed' && 'Failed'}
@@ -628,9 +628,9 @@ export default function ActivityDetailsScreen() {
               
               <View style={styles.estimateContainer}>
                 <Text style={styles.estimateText}>
-                  Expected: {isPeakUsage ? '3-6 minutes' : '1-2 minutes'}
+                  Expected: {state.isPeakUsage ? '3-6 minutes' : '1-2 minutes'}
                 </Text>
-                {isPeakUsage && (
+                {state.isPeakUsage && (
                   <Text style={styles.peakUsageHint}>
                     💡 Using fast generation (1080p). Try off-peak hours for even faster processing.
                   </Text>

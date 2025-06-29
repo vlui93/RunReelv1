@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { useVideoGeneration } from '@/hooks/useVideoGeneration';
+import { useEnhancedVideoGeneration } from '@/hooks/useEnhancedVideoGeneration';
 import { Clock, Target, Zap, Video, Share2, Home } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -20,7 +20,14 @@ export default function RunSummaryScreen() {
   const { runId } = useLocalSearchParams<{ runId: string }>();
   const [run, setRun] = useState<RunData | null>(null);
   const [loading, setLoading] = useState(true);
-  const { isGenerating, progress, error, videoUrl, generateVideo, resetState } = useVideoGeneration();
+  const { 
+    isGenerating, 
+    progress, 
+    error, 
+    videoUrl, 
+    generateActivityVideo, 
+    resetState 
+  } = useEnhancedVideoGeneration();
 
   useEffect(() => {
     if (runId) {
@@ -59,7 +66,22 @@ export default function RunSummaryScreen() {
 
     try {
       resetState();
-      await generateVideo(run.id, run);
+      
+      const activityData = {
+        id: run.id,
+        activity_type: 'Running',
+        activity_name: 'Run Achievement',
+        distance_km: run.distance,
+        duration_seconds: run.duration,
+        calories_burned: run.calories
+      };
+      
+      await generateActivityVideo(activityData, {
+        format: 'square',
+        voiceType: 'motivational',
+        includeStats: true
+      });
+      
       // Refresh run data to get the updated video URL
       await fetchRunData();
     } catch (error) {

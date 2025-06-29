@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
+import { ThumbnailService } from '@/services/thumbnailService';
 
 export interface VideoLibraryItem {
   id: string;
@@ -51,26 +52,12 @@ export function useVideoLibrary() {
     try {
       setRefreshing(true);
       
+      // Fetch videos from manual_activities where video_url exists
       const { data, error } = await supabase
-        .from('video_generations')
-        .select(`
-          id,
-          video_url,
-          script_content,
-          status,
-          tavus_job_id,
-          cost_estimate,
-          error_message,
-          created_at,
-          updated_at,
-          run_id,
-          manual_activities!inner(
-            activity_type,
-            activity_name,
-            duration_seconds
-          )
-        `)
+        .from('manual_activities')
+        .select('*')
         .eq('user_id', user.id)
+        .not('video_url', 'is', null)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -78,24 +65,25 @@ export function useVideoLibrary() {
         throw error;
       }
 
-      // Transform the data to match our VideoLibraryItem interface
-      const transformedVideos: VideoLibraryItem[] = (data || []).map((item: any) => ({
-        id: item.id,
-        title: item.manual_activities?.activity_name || `${item.manual_activities?.activity_type || 'Achievement'} Video`,
-        video_url: item.video_url || '',
-        status: item.status,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        script_content: item.script_content,
-        tavus_job_id: item.tavus_job_id,
-        cost_estimate: item.cost_estimate,
-        error_message: item.error_message,
-        run_id: item.run_id,
-        activity_type: item.manual_activities?.activity_type,
-        duration: item.manual_activities?.duration_seconds,
-        // Generate custom thumbnail identifier for our component
-        thumbnail_url: item.status === 'completed' ? generateThumbnailUrl(item) : undefined,
-      }));
+      // Transform manual activities to video library items
+      const transformedVideos: VideoLibraryItem[] = await Promise.all(
+        (data || []).map(async (item: any) => {
+          const thumbnail = await ThumbnailService.generateThumbnail(item.video_url);
+          
+          return {
+            id: item.id,
+            title: item.activity_name || `${item.activity_type} Video`,
+            video_url: item.video_url,
+            status: 'completed' as const,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            script_content: item.script_content,
+            activity_type: item.activity_type,
+            duration: item.duration_seconds,
+            thumbnail_url: thumbnail,
+          };
+        })
+      );
 
       setVideos(transformedVideos);
     } catch (error) {
@@ -106,32 +94,14 @@ export function useVideoLibrary() {
     }
   };
 
-  const generateThumbnailUrl = (item: any): string => {
-    // Create a custom URL scheme for our thumbnail generator
-    const activityType = item.manual_activities?.activity_type || 'Other';
-    const activityName = item.manual_activities?.activity_name || 'Achievement Video';
-    const duration = item.manual_activities?.duration_seconds || 0;
-    const date = item.created_at;
-    
-    // Return a custom URL that our component can parse
-    return `thumbnail://${item.id}?type=${encodeURIComponent(activityType)}&name=${encodeURIComponent(activityName)}&duration=${duration}&date=${encodeURIComponent(date)}`;
-  };
-
   const updateVideoTitle = async (videoId: string, newTitle: string): Promise<void> => {
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // Since we don't have a direct title field in video_generations,
-      // we'll update the activity name in manual_activities
-      const video = videos.find(v => v.id === videoId);
-      if (!video || !video.run_id) {
-        throw new Error('Video or associated activity not found');
-      }
-
       const { error } = await supabase
         .from('manual_activities')
         .update({ activity_name: newTitle })
-        .eq('id', video.run_id)
+        .eq('id', videoId)
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -151,15 +121,15 @@ export function useVideoLibrary() {
 
     try {
       const { error } = await supabase
-        .from('video_generations')
-        .delete()
+        .from('manual_activities')
+        .update({ video_url: null, script_content: null })
         .eq('id', videoId)
         .eq('user_id', user.id);
 
       if (error) throw error;
 
-      // Update local state
-      setVideos(prev => prev.filter(v => v.id !== videoId));
+      // Refresh videos list
+      await fetchVideos();
     } catch (error) {
       console.error('Error deleting video:', error);
       throw error;
